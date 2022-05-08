@@ -1,0 +1,55 @@
+---
+title: "The impacts of metropolitan tree cover: evidence from tree loss in Chicago"
+author: "Alberto Garcia"
+date: "May 20th, 2022"
+output:
+  bookdown::pdf_document2:
+    latex_engine: xelatex
+    number_sections: yes
+    toc: no
+  html_document: default
+  documentclass: article
+#bibliography: deforestation_econometrics.bib
+header-includes: 
+  \usepackage{bbm}  
+  \usepackage{graphicx}
+  \usepackage{amsmath}
+  \usepackage{amssymb}
+  \usepackage{sectsty}
+  \usepackage{mathtools}
+---
+
+\sectionfont{\fontsize{11}{11}\selectfont}
+\subsectionfont{\fontsize{11}{11}\selectfont}
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(ggplot2)
+library(kableExtra)
+library(tidyverse)
+library(Metrics)
+library(reshape2)
+
+source(here::here('paper', 'schart.R'))
+source(here::here('paper', 'my_event_study_plot.R'))
+
+
+knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, messages = FALSE, out.width="49%", fig.align = "center")
+
+palette <- list("white" = "#FAFAFA",
+                "light_grey" = "#d9d9d9",
+                "dark" = "#0c2230",
+                "red" = "#ed195a",
+                "blue" = "#1c86ee",
+                "green" = "#7CAE7A",
+                "dark_green" = "#496F5D",
+                "gold" = "#DAA520")
+```
+
+
+
+# Abstract {-}
+Blah blah blah
+
+# Introduction
