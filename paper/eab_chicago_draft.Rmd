@@ -1,12 +1,12 @@
 ---
-title: "The impacts of metropolitan tree cover: evidence from tree loss in Chicago"
+title: "The benefits of metropolitan tree cover: evidence from the emerald ash borer in Chicago"
 author: "Alberto Garcia"
 date: "May 20th, 2022"
 output:
-  bookdown::pdf_document2:
-    latex_engine: xelatex
-    number_sections: yes
-    toc: no
+  pdf_document:
+      latex_engine: xelatex
+  number_sections: true
+  toc: false
   html_document: default
   documentclass: article
 #bibliography: deforestation_econometrics.bib
@@ -19,9 +19,8 @@ header-includes:
   \usepackage{mathtools}
 ---
 
-\sectionfont{\fontsize{11}{11}\selectfont}
-\subsectionfont{\fontsize{11}{11}\selectfont}
-
+<!-- \sectionfont{\fontsize{11}{11}\selectfont} -->
+<!-- \subsectionfont{\fontsize{11}{11}\selectfont} -->
 
 ```{r setup, include=FALSE}
 library(knitr)
@@ -30,10 +29,6 @@ library(kableExtra)
 library(tidyverse)
 library(Metrics)
 library(reshape2)
-
-source(here::here('paper', 'schart.R'))
-source(here::here('paper', 'my_event_study_plot.R'))
-
 
 knitr::opts_chunk$set(echo = FALSE, warnings = FALSE, messages = FALSE, out.width="49%", fig.align = "center")
 
@@ -53,3 +48,73 @@ palette <- list("white" = "#FAFAFA",
 Blah blah blah
 
 # Introduction
+
+The Chicago region is the third-largest metropolitan region in
+the United States. 
+
+# Background
+
+## Emerald Ash Borer in the Chicago area
+
+The emerald ash borer is an exotic beetle first discovered in the United States in 2002 near Detroit, Michigan [@addcite]. The pest exclusively targets ash trees, and infestation is fatal to all north american ash trees. 
+
+The ash borer has been referred to as the most destructive forest pest ever introduced to the United States [@Nowak1], and ash trees have suffered extensively in the Chicago area. A Chicago region tree census revealed that the areas standing ash population nearly halved between 2010 and 2020, dropping from an estimated 13 million to under 7 million [@treecensus]. Of those 7 million standing trees, 4 million are either dead or in decline. Further, as of 2020, more than 30\% of ash trees in the region are saplings, likely having regenerated from removed adults. Although many ash trees were replaced with alternative species, the overall number of large trees (> 6 in diameter) dropped nearly 2 percentage points across the region. 
+
+## Greenery and education outcomes
+
+
+
+# Data
+
+## Emerald ash borer survey
+
+EAB infestation is fatal, however, it is difficult to detect until a tree is extensively damaged by the EAB and begins to show symptoms. After the first EAB detections in 2006, the Illinois Department of Agriculture (IDA) initiated survey efforts to determine the extent of EAB spread. 
+
+The IDA survey consisted of destructive bark peeling of selected trees. Selected trees were generally 4-8 diameters in width and in areas of easy and clear right-of-way access, with efforts to sample 1 tree per 4 square miles. Initially, the damage was minimal as the detection method results were mostly negative, but positive finds became more and more prevalent [@IDA]. Ultimately, the state stopped survey efforts in 2015, as EAB spread had become extensive. Figure XX displays the locations of confirmed EAB infestations by year through the survey. 
+
+## Chicago metropolitan area tree cover
+
+We utilize maps of urban and metropolitan tree cover developed in @mccabe2018. These yield annual tree canopy gain and loss at 30m resolution for the Chicago area from 1996 to 2016. They are based on Landsat imagery and 1m ground reference data from the Chicago Metropolitan Agency for Planning. Figure XX displays confirmed infestations within the Chicago metropolitan region for which we have tree cover data. Note that the majority of the confirmed infestations lie within both the Chcago metropolitan area as well as the extent of our tree canopy data. 
+
+## Education and test score data
+
+Test score data come from the Illinois Standards Achievement Test (ISAT), which was instituted for the purpose of identifying failing schools. Students were tested in reading and math from grades 3–8. The Illinois State Board of Education (ISBE) reported school-level performance on the test between 2003 and 2014, when the ISAT was retired. We geocode locations of each public school in the state of Illinois using addresses provided by ISBE. This allows us to understand the location of each school relative to EAB infestations. 
+
+## Alternative outcomes of interest
+
+In this draft, we have used test scores as the outcome of interest to explore the benefits of tree cover, however, tree cover provides ample benefits worth exploring in this context. 
+
+# Tree cover impacts of EAB infestation
+
+There are two main channels through which EAB detection may result in tree loss. The first is through the EAB directly, as an ash tree will die between one and four years following infestation, depending on the size and health of the individual. The second is through intentional removal of infested trees. Most communities declare any confirmed infested tree a public nuisance and require that the tree be removed. As such, a confirmed infestation is likely to lead to quicker removal of infested or dead trees in the vicinity. 
+
+EAB detection may also lead to lower levels of tree cover gain. Removal of damaged or dead trees is costly to individuals and communities. Macomb, a city in the Chicago metropolitan area, estimates a cost of \$675 (2007 estimate, not adjusted) to remove and replant a single tree (over \$200,00 if all ash trees in the city were to be replaced) [@macomb]. EAB infestation had a massive impact on forestry budgets across the United States [@]. However while budgets in states with confirmed EAB infestation saw massive increases in budget for tree removal relative to non-EAB confirmed states, budgets for tree planting did not change. It is plausible that replacing removed trees came at the cost of establishing tree cover elsewhere. 
+
+I define treatment status using confirmed infestations from the IDA bark peeling survey. An IDA confirmed infestation indicates that not only are trees in the vicinity infested and ultimately likely to die, but that community officials are aware of the need for tree removal and replacement. 
+
+We begin by examining the impact of EAB infestation on tree cover. We denote a binary treatment indicator, $D_{it}$, which is equal to one in the years $t$ after which there has been confirmed infestation in grid cell $i$. The following two-way fixed effects specification seeks to recover the impact of confirmed EAB infestation on tree loss and tree gain in the Chicago metropolitan region. 
+
+\begin{align}
+y_{it} = \alpha + \beta_{twfe} \times D_{it} + \gamma_t + \lambda_i + \epsilon_{it} \end{align}
+, 
+where $y_{it}$ denotes acres of tree cover change in year $t$; $\gamma_t$ and $\lambda_i$ denote year and unit fixed effects, respectively; and $\beta_{twfe}$ denotes our coefficient of interest. 
+
+
+Table @\ref(tab:twfe) shows the results from regression (1) for both tree cover loss and tree cover gain. These results indicate that a confirmed EAB infestation leads to a loss of XX acres of tree cover and a reduction in tree cover gain of an additional XX acres within a 5km grid cell. Also shown are estimates from the @callaway2020 estimator, which yield a similar conclusion. 
+
+Figure XX displays event study estimates using the @callaway2020 estimator in order to understand the dynamics of tree cover change following infestation. This figure also allows us to gauge the plausibility of the common trends assumption on which this identification strategy relies. We find the assumption to be plausible given the similar pre-trends in outcomes as well as the fact that EAB infestation confirmation was likely idiosyncratic and the systematic nature of the survey efforts. 
+
+## Ash density as intensity of treatment
+
+\begin{align}
+y_{it} = \alpha + \beta_{intensity} \times D_{it} \times ash_{i, 2010} + \gamma_t + \lambda_i + \epsilon_{it} \end{align}
+,
+where $ash_2010$ denotes the expected number of ash trees per acre in grid cell $i$ in the 2010 tree census. 
+
+Table XX shows the estimates of $\beta_{intensity}$. We see that.. These estimates further lend credence to the EAB as driver of tree loss and gain in this landscape. 
+
+# Education impacts of EAB infestation
+
+# The impact of tree cover on test scores: evidence from instrumental variables
+
+

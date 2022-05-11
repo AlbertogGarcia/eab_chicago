@@ -2,9 +2,9 @@ library(sf)
 library(raster)
 library(readxl)
 library(tidyverse)
-setwd("C:/Users/agarcia/Dropbox/chicago_eab")
+setwd("C:/Users/agarcia/Dropbox/eab_chicago_data")
 
-illinois.shp <- read_sf("IL_State/IL_BNDY_State_Ln.shp")%>%
+illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Ln.shp")%>%
   st_transform(crs(raster("tree_data/tree_loss_year.tif")))
 tree_loss <- raster("tree_data/tree_loss_year.tif")%>%
   crop(illinois.shp)
@@ -38,7 +38,7 @@ gridded_infestations <- st_make_grid(silvis_bound, square = T, cellsize = c(grid
   group_by(grid)%>%
   mutate(first_detected = min(Year, na.rm = T))%>%
   dplyr::select(-c(Year))
-st_write(gridded_infestations, "gridded_infestations.shp")
+#st_write(gridded_infestations, "gridded_infestations.shp")
 
 library(ggplot2)
 ggplot(eab_infestations %>% st_crop(gridded_infestations), aes(color = Year))+
@@ -97,6 +97,10 @@ eeb_panel <- eeb_loss_data %>%
   group_by(year, grid)%>%
   slice_head()%>%
   mutate(net_gain = gain - loss,
+         acres_gain = gain * 0.222395,
+         acres_loss = loss * 0.222395,
+         acres_net_gain = net_gain * 0.222395,
+         acres_IS = impervious * 0.222395,
          treated = ifelse(year > first_detected & year > 0, 1, 0))
 
 
@@ -108,14 +112,13 @@ eeb_panel <- eeb_loss_data %>%
 
 library(did)
 set.seed(0930)
-loss_attgt <- att_gt(yname = "loss",
+loss_attgt <- att_gt(yname = "acres_loss",
                 tname = "year",
                 idname = "grid",
                 gname = "first_detected",
                 control_group = "notyettreated",
                 data = eeb_panel
 )
-summary(loss_attgt)
 loss_ovr <- aggte(loss_attgt, type = "simple")
 summary(loss_ovr)
 loss_es <- aggte(loss_attgt, type = "dynamic")
@@ -124,15 +127,38 @@ ovr_results <- data.frame("outcome" = "loss", "ATT" = loss_ovr$overall.att, "se"
 es_results <- data.frame("outcome" = "loss", "ATT" = loss_es$att.egt, "e" = loss_es$egt, "se" = loss_es$se.egt)
 
 library(fixest)
-twfe_loss <- feols(loss ~ treated | year + grid, data = eeb_panel)
+twfe_loss <- feols(acres_loss ~ treated | year + grid, data = eeb_panel)
 summary(twfe_loss)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-###  Tree cover change
+###  Tree cover gain
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+gain_attgt <- att_gt(yname = "acres_gain",
+                     tname = "year",
+                     idname = "grid",
+                     gname = "first_detected",
+                     control_group = "notyettreated",
+                     data = eeb_panel
+)
+summary(gain_attgt)
 
-net_attgt <- att_gt(yname = "net_gain",
+gain_ovr <- aggte(gain_attgt, type = "simple")
+summary(gain_ovr)
+gain_es <- aggte(gain_attgt, type = "dynamic")
+twfe_cum <- feols(acres_gain ~ treated | year + grid, data = eeb_panel)
+summary(twfe_cum)
+
+ovr_results <- data.frame("outcome" = "gain", "ATT" = gain_ovr$overall.att, "se" = gain_ovr$overall.se)%>%
+  rbind(ovr_results)
+es_results <- data.frame("outcome" = "gain", "ATT" = gain_es$att.egt, "e" = gain_es$egt, "se" = gain_es$se.egt)%>%
+  rbind(es_results)
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+###  tree cover change
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+net_attgt <- att_gt(yname = "acres_net_gain",
                     tname = "year",
                     idname = "grid",
                     gname = "first_detected",
@@ -145,44 +171,20 @@ net_ovr <- aggte(net_attgt, type = "simple")
 summary(net_ovr)
 net_es <- aggte(net_attgt, type = "dynamic")
 
-ovr_results <- data.frame("outcome" = "net gain", "ATT" = net_ovr$overall.att, "se" = net_ovr$overall.se)%>%
+ovr_results <- data.frame("outcome" = "net change", "ATT" = net_ovr$overall.att, "se" = net_ovr$overall.se)%>%
   rbind(ovr_results)
-es_results <- data.frame("outcome" = "net gain", "ATT" = net_es$att.egt, "e" = net_es$egt, "se" = net_es$se.egt)%>%
+es_results <- data.frame("outcome" = "net change", "ATT" = net_es$att.egt, "e" = net_es$egt, "se" = net_es$se.egt)%>%
   rbind(es_results)
 
-twfe_net <- feols(net_gain ~ treated | year + grid, data = eeb_panel)
+twfe_net <- feols(acres_net_gain ~ treated | year + grid, data = eeb_panel)
 summary(twfe_net)
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### Cumulative tree cover change
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-gain_attgt <- att_gt(yname = "gain",
-                    tname = "year",
-                    idname = "grid",
-                    gname = "first_detected",
-                    control_group = "notyettreated",
-                    data = eeb_panel
-)
-summary(gain_attgt)
-
-gain_ovr <- aggte(gain_attgt, type = "simple")
-summary(gain_ovr)
-gain_es <- aggte(gain_attgt, type = "dynamic")
-twfe_cum <- feols(gain ~ treated | year + grid, data = eeb_panel)
-summary(twfe_cum)
-
-ovr_results <- data.frame("outcome" = "gain", "ATT" = gain_ovr$overall.att, "se" = gain_ovr$overall.se)%>%
-  rbind(ovr_results)
-es_results <- data.frame("outcome" = "gain", "ATT" = gain_es$att.egt, "e" = gain_es$egt, "se" = gain_es$se.egt)%>%
-  rbind(es_results)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Impervious increase
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-impervious_attgt <- att_gt(yname = "impervious",
+impervious_attgt <- att_gt(yname = "acres_IS",
                            tname = "year",
                            idname = "grid",
                            gname = "first_detected",
@@ -216,7 +218,7 @@ loss_plot <- ggplot(es_results %>% filter(outcome == "loss" & e >= -10), aes(x =
   theme_minimal()
 loss_plot
 
-netcover_plot <- ggplot(es_results %>% filter(outcome == "net gain" & e >= -10), aes(x = e, y = ATT)) + 
+netcover_plot <- ggplot(es_results %>% filter(outcome == "net change" & e >= -10), aes(x = e, y = ATT)) + 
   geom_line() + 
   geom_ribbon(aes(ymin=lowerci,ymax=upperci),alpha=0.2)+
   geom_vline(xintercept = -0.25, linetype = "dashed")+
@@ -232,10 +234,4 @@ gain_plot <- ggplot(es_results %>% filter(outcome == "gain" & e >= -10), aes(x =
   theme_minimal()
 gain_plot
 
-IS_plot <- ggplot(es_results %>% filter(outcome == "impervious" & e >= -10), aes(x = e, y = ATT)) + 
-  geom_line() + 
-  geom_ribbon(aes(ymin=lowerci,ymax=upperci),alpha=0.2)+
-  geom_vline(xintercept = -0.25, linetype = "dashed")+
-  geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_minimal()
-IS_plot
+
