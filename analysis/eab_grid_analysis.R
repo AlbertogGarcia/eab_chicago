@@ -21,7 +21,6 @@ eab_infestations <- read_sf("eeb_infestations/eeb_address_geocode.shp")%>%
 
 
 
-#grid_spacing = 10000
 #grid_spacing = 3000
 grid_spacing = 5000
 
@@ -37,7 +36,10 @@ gridded_infestations <- st_make_grid(silvis_bound, square = T, cellsize = c(grid
   st_join(eab_infestations)%>%
   group_by(grid)%>%
   mutate(first_detected = min(Year, na.rm = T))%>%
-  dplyr::select(-c(Year))
+  slice_head()%>%
+  dplyr::select(-c(Year))%>%
+  ungroup()
+
 #st_write(gridded_infestations, "gridded_infestations.shp")
 
 library(ggplot2)
