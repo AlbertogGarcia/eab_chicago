@@ -214,9 +214,18 @@ export(ovr_results, "eab_tree_results_grid3km.rds")
 ### Event study plots
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+palette <- list("white" = "#FAFAFA",
+                "light_grey" = "#d9d9d9",
+                "dark" = "#0c2230",
+                "red" = "#ed195a",
+                "blue" = "#1c86ee",
+                "green" = "#7CAE7A",
+                "dark_green" = "#496F5D",
+                "gold" = "#DAA520")
+
 loss_plot <- ggplot(es_results %>% filter(outcome == "loss" & e >= -10), aes(x = e, y = ATT)) + 
   geom_line() + 
-  geom_ribbon(aes(ymin=lowerci,ymax=upperci),alpha=0.2)+
+  geom_ribbon(aes(ymin=lowerci,ymax=upperci),alpha=0.2, fill = palette$red)+
   geom_vline(xintercept = -0.25, linetype = "dashed")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_minimal()+
@@ -234,7 +243,7 @@ netcover_plot
 
 gain_plot <- ggplot(es_results %>% filter(outcome == "gain" & e >= -10), aes(x = e, y = ATT)) + 
   geom_line() + 
-  geom_ribbon(aes(ymin=lowerci,ymax=upperci),alpha=0.2)+
+  geom_ribbon(aes(ymin=lowerci,ymax=upperci),alpha=0.25, fill = palette$green)+
   geom_vline(xintercept = -0.25, linetype = "dashed")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_minimal()+

@@ -98,37 +98,57 @@ Test score data come from the Illinois Standards Achievement Test (ISAT), which 
 
 In this draft, we have used test scores as the outcome of interest to explore the benefits of tree cover, however, tree cover provides ample benefits worth exploring in this context. 
 
-# Tree cover impacts of EAB infestation
+# EAB infestation impacts tree cover loss and gain
 
-There are two main channels through which EAB detection may result in tree loss. The first is through the EAB directly, as an ash tree will die between one and four years following infestation, depending on the size and health of the individual. The second is through intentional removal of infested trees. Most communities declare any confirmed infested tree a public nuisance and require that the tree be removed. As such, a confirmed infestation is likely to lead to quicker removal of infested or dead trees in the vicinity. 
+In this section, I aim to establish that confirmed EAB infestations lead to reduced forest cover through two means: 1) increased tree loss and 2) reduced tree cover gain. There are two main channels through which EAB detection may result in tree loss. The first is through the EAB directly, as an ash tree will die between one and four years following infestation, depending on the size and health of the individual. The second is through intentional removal of infested trees. Most communities declare any confirmed infested tree a public nuisance and require that the tree be removed [e.g., @macomb]. As such, a confirmed infestation is likely to lead to quicker removal of infested or dead trees in the vicinity, in addition to death of trees due to EAB infestation. 
 
-EAB detection may also lead to lower levels of tree cover gain. Removal of damaged or dead trees is costly to individuals and communities. Macomb, a city in the Chicago metropolitan area, estimates a cost of \$675 (2007 estimate, not adjusted) to remove and replant a single tree (over \$200,00 if all ash trees in the city were to be replaced) [@macomb]. EAB infestation had a massive impact on forestry budgets across the United States [@]. However while budgets in states with confirmed EAB infestation saw massive increases in budget for tree removal relative to non-EAB confirmed states, budgets for tree planting did not change. It is plausible that replacing removed trees came at the cost of establishing tree cover elsewhere. 
+EAB detection may also lead to lower levels of tree cover gain. Removal of damaged or dead trees is costly to individuals and communities. Macomb, a city in the Chicago metropolitan area, estimates a cost of \$675 (2007 estimate, not adjusted) to remove and replant a single tree [@macomb]. More broadly, EAB had a massive impact on forestry budgets across the United States [@]. However, while budgets in states with confirmed EAB infestation saw massive increases in tree removal budgets relative to non-EAB confirmed states, budgets for tree planting did not change. Because most removed trees are likely replaced with new trees, it is plausible that trees that would've been established elsewhere in the absence of EAB were never established. 
 
-I define treatment status using confirmed infestations from the IDA bark peeling survey. An IDA confirmed infestation indicates that not only are trees in the vicinity infested and ultimately likely to die, but that community officials are aware of the need for tree removal and replacement. 
+To estimate the impact of EAB infestation on tree cover, I use difference-in-differences methods developed in @callaway2020. Unlike the traditional two-way fixed effects regression, this estimator is robust to general treatment effect heterogeneity. I define treatment status using confirmed infestations from the IDA bark peeling survey described in section XX. An IDA confirmed infestation indicates that not only are trees in the vicinity infested and ultimately likely to die, but that community officials are aware of the need for tree removal and replacement. 
 
-We begin by examining the impact of EAB infestation on tree cover. We denote a binary treatment indicator, $D_{it}$, which is equal to one in the years $t$ after which there has been confirmed infestation in grid cell $i$. The following two-way fixed effects specification seeks to recover the impact of confirmed EAB infestation on tree loss and tree gain in the Chicago metropolitan region. 
+In this section, I use 5km grid cells as the unit of analysis. A grid cell is valuable for several reasons. First, a confirmed infestation likely indicates that there are EAB in nearby trees as well. @science find that EAB females fly an average of ... Further, local communities are likely to respond in the surrounding areas. For example, some communities might preemptively fell ash trees likely to become infected in the surrounding area. In the appendix, I show that these conclusions are robust when using a 3km grid cell as well. 
 
-\begin{align}
-y_{it} = \alpha + \beta_{twfe} \times D_{it} + \gamma_t + \lambda_i + \epsilon_{it} \end{align}
-, 
-where $y_{it}$ denotes acres of tree cover change in year $t$; $\gamma_t$ and $\lambda_i$ denote year and unit fixed effects, respectively; and $\beta_{twfe}$ denotes our coefficient of interest. 
+Table @\ref(tab:treegrid) shows results for both tree cover loss and tree cover gain in acres per year. Note that these estimates should be interpreted not as overall tree cover, but as the rate of tree cover gain and loss in a given year. These results indicate that a confirmed EAB infestation leads to a loss of XX acres of tree cover per year, and a reduction in tree cover gain of an additional XX acres per year within a 5km grid cell.
 
+Figure XX displays event study estimates using the @callaway2020 estimator in order to understand the dynamics of tree cover change following infestation. This figure also allows us to gauge the plausibility of the common trends assumption on which this identification strategy relies. I find the assumption to be plausible given the similar pre-trends in outcomes as well as the fact that the timing of EAB infestation confirmation was likely idiosyncratic and driven by the biological nature of the beetle. 
 
-Table @\ref(tab:twfe) shows the results from regression (1) for both tree cover loss and tree cover gain. These results indicate that a confirmed EAB infestation leads to a loss of XX acres of tree cover and a reduction in tree cover gain of an additional XX acres within a 5km grid cell. Also shown are estimates from the @callaway2020 estimator, which yield a similar conclusion. 
+```{r tree-grid-es, echo=FALSE, fig.cap="Left: Confirmed EAB infestation leads to a temporary increase in tree cover loss; Right: Confirmed EAB infestation leads to a decline in tree cover gain", out.width = '49%', fig.show='hold',fig.align='center'}
 
-Figure XX displays event study estimates using the @callaway2020 estimator in order to understand the dynamics of tree cover change following infestation. This figure also allows us to gauge the plausibility of the common trends assumption on which this identification strategy relies. We find the assumption to be plausible given the similar pre-trends in outcomes as well as the fact that EAB infestation confirmation was likely idiosyncratic and the systematic nature of the survey efforts. 
+knitr::include_graphics(
+  c("figs/eab_loss_grid5km.png", "figs/eab_gain_grid5km.png")
+                        )
 
-## Ash density as intensity of treatment
-
-\begin{align}
-y_{it} = \alpha + \beta_{intensity} \times D_{it} \times ash_{i, 2010} + \gamma_t + \lambda_i + \epsilon_{it} \end{align}
-,
-where $ash_2010$ denotes the expected number of ash trees per acre in grid cell $i$ in the 2010 tree census. 
-
-Table XX shows the estimates of $\beta_{intensity}$. We see that.. These estimates further lend credence to the EAB as driver of tree loss and gain in this landscape. 
+```
 
 # Education impacts of EAB infestation
 
+```{r schart-test, echo=FALSE, fig.cap="my caption", out.width = '100%', fig.show='hold',fig.align='center'}
+
+knitr::include_graphics("figs/eab_testscores.png" )
+
+```
+
+```{r test-es, echo=FALSE, fig.cap="my caption", out.width = '49%', fig.show='hold',fig.align='center'}
+
+knitr::include_graphics(
+  c("figs/eab_test_ISAT.png", "figs/eab_test_math11.png")
+                        )
+
+```
+
+
+
 # The impact of tree cover on test scores: evidence from instrumental variables
 
+## First stage
 
+\begin{align}
+canopy_{st} = \beta_0 + \beta_1 \times infestation_{st} + \gamma_t + \lambda_s + \epsilon_{it} 
+\end{align}
+
+## IV estimates
+
+
+\begin{align}
+ISAT_{st} = \alpha_0 + \alpha_1 \times \widehat{canopy_{st}} + \gamma_t + \lambda_s + \epsilon_{st} 
+\end{align}
