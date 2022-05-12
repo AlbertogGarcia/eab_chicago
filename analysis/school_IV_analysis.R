@@ -4,9 +4,6 @@ library(readxl)
 library(tidyverse)
 library(here)
 
-setwd("C:/Users/garci/Documents/eab_chicago")
-source(here::here('analysis', 'schart.R'))
-
 setwd("C:/Users/garci/Dropbox/eab_chicago_data")
 
 illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Ln.shp")%>%
@@ -21,7 +18,7 @@ impervious_increase <- raster("tree_data/IS_change_year.tif")%>%
 school_test_scores <- readRDS("schools/school_test_scores.rds")
 
 
-buffer_size <- 5000
+buffer_size <- 3000
 
 school_buffer <- st_crop(st_buffer(
   school_test_scores %>%
@@ -116,7 +113,7 @@ full_panel <- schooltree_panel %>%
 
 library(did)
 set.seed(0930)
-loss_attgt <- att_gt(yname = "gain",
+loss_attgt <- att_gt(yname = "cumgain",
                      tname = "year",
                      idname = "my_id",
                      gname = "first_detected",
@@ -143,7 +140,7 @@ summary(twfe_loss)
 
 library(estimatr) # outcome ~ treatment | instrument
 library(AER)
-variable_names <- c("Read_3", "Read_5", "Read_8", "Read_11", "Math_3", "Math_5", "Math_8", "Math_11", "ISAT")
+variable_names <- c("ISAT")
 treatment_names <- c("cumnet", "cumloss", "cumgain")
 
 allModelsList <- lapply(paste(variable_names, "~", treatment_names, "+ as.factor(year) + as.factor(my_id) | treated + as.factor(year) + as.factor(my_id)"), as.formula)
@@ -181,6 +178,9 @@ for(i in variable_names){
 
 
 }
+
+library(rio)
+export(iv_results, "iv_results_3km.rds")
 
 test <- iv_results %>%
   mutate(significant.95 = ifelse(abs(coeff) >= 1.96*se, 1, 0),

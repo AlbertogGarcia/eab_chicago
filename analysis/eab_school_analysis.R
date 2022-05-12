@@ -4,7 +4,6 @@ library(readxl)
 library(tidyverse)
 library(here)
 
-setwd("C:/Users/garci/Documents/eab_chicago")
 source(here::here('analysis', 'schart.R'))
 
 setwd("C:/Users/garci/Dropbox/eab_chicago_data")
@@ -42,25 +41,6 @@ test_scores_infestation <- school_test_scores %>%
   mutate_at(vars(first_exposed), ~replace(., is.na(.), 0))
 
 test_scores_infestation$geometry <- NULL
-
-
-library(did)
-set.seed(0930)
-loss_attgt <- att_gt(yname = "Math_11",
-                     tname = "year",
-                     idname = "my_id",
-                     gname = "first_exposed",
-                     control_group = "notyettreated",
-                     data = test_scores_infestation
-)
-loss_ovr <- aggte(loss_attgt, type = "simple")
-summary(loss_ovr)
-loss_es <- aggte(loss_attgt, type = "dynamic")
-ggdid(loss_es)
-
-library(fixest)
-twfe_loss <- feols(Math_3 ~ treated | year + my_id, data = test_scores_infestation)
-summary(twfe_loss)
 
 
 variable_names <- c("Read_3", "Read_5", "Read_8", "Read_11", "Math_3", "Math_5", "Math_8", "Math_11", "ISAT")
@@ -109,13 +89,14 @@ for(i in buffer_list){
 }
 
 
-ex_plot <- ggplot(es_results %>% filter(outcome == "Math_11", buffer == 5000, between(e, -9, 7)), aes(x = e, y = ATT)) + 
+ISAT_plot <- ggplot(es_results %>% filter(outcome == "Math_11", buffer == 5000, between(e, -9, 7)), aes(x = e, y = ATT)) + 
   geom_line() + 
   geom_ribbon(aes(ymin= ATT - 1.96*se, ymax=ATT + 1.96*se), alpha=0.2)+
   geom_vline(xintercept = -0.5, linetype = "dashed")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_minimal()
-ex_plot
+ISAT_plot
+ggsave(ISAT_plot, path = "figs", "eab_testscore_isat.png")
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Specification chart to visualize results

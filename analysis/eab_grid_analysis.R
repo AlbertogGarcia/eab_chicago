@@ -21,7 +21,7 @@ eab_infestations <- read_sf("eeb_infestations/eeb_address_geocode.shp")%>%
 
 
 
-#grid_spacing = 3000
+# grid_spacing = 3000
 grid_spacing = 5000
 
 silvis_bound <- st_bbox(tree_loss)
@@ -207,7 +207,9 @@ es_results <- es_results %>%
   mutate(upperci = ATT + 1.96*se,
          lowerci = ATT - 1.96*se)
 
-
+setwd("C:/Users/agarcia/Documents/eab_chicago/analysis")
+library(rio)
+export(ovr_results, "eab_tree_results_grid3km.rds")
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Event study plots
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -217,7 +219,8 @@ loss_plot <- ggplot(es_results %>% filter(outcome == "loss" & e >= -10), aes(x =
   geom_ribbon(aes(ymin=lowerci,ymax=upperci),alpha=0.2)+
   geom_vline(xintercept = -0.25, linetype = "dashed")+
   geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_minimal()
+  theme_minimal()+
+  ggtitle("Tree cover loss (acres/year)")
 loss_plot
 
 netcover_plot <- ggplot(es_results %>% filter(outcome == "net change" & e >= -10), aes(x = e, y = ATT)) + 
@@ -225,7 +228,8 @@ netcover_plot <- ggplot(es_results %>% filter(outcome == "net change" & e >= -10
   geom_ribbon(aes(ymin=lowerci,ymax=upperci),alpha=0.2)+
   geom_vline(xintercept = -0.25, linetype = "dashed")+
   geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_minimal()
+  theme_minimal()+
+  ggtitle("Net tree cover change (acres/year)")
 netcover_plot
 
 gain_plot <- ggplot(es_results %>% filter(outcome == "gain" & e >= -10), aes(x = e, y = ATT)) + 
@@ -233,7 +237,8 @@ gain_plot <- ggplot(es_results %>% filter(outcome == "gain" & e >= -10), aes(x =
   geom_ribbon(aes(ymin=lowerci,ymax=upperci),alpha=0.2)+
   geom_vline(xintercept = -0.25, linetype = "dashed")+
   geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_minimal()
+  theme_minimal()+
+  ggtitle("Tree cover gain (acres/year)")
 gain_plot
 
 

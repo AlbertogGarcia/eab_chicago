@@ -1,5 +1,5 @@
 ---
-title: "The benefits of metropolitan tree cover: evidence from the emerald ash borer in Chicago"
+title: "The education benefits of metropolitan tree cover: evidence from the emerald ash borer in Chicago"
 author: "Alberto Garcia"
 date: "May 20th, 2022"
 output:
@@ -62,7 +62,21 @@ The ash borer has been referred to as the most destructive forest pest ever intr
 
 ## Greenery and education outcomes
 
+Children are exposed to more green vegetation show enhanced cognitive development [@Reuben2019]. 
 
+The association between the amount of trees and vegetation and improved test performance has been well documented [e.g., @wu2014]
+
+Sivarajah2018plos
+
+This may be through several different channels. 
+
+Green spaces to mitigate traffic-related air pollution [@Dadvand2018]
+
+They may also reduce noise, allowing students to better focus [Gidlöf-Gunnarsson, E Öhrström, Noise and well-being in urban residential environments]
+
+@Dadvand2015 show that increased vegetation, particularly at school is associated with increase scores on cogntive development tests. 
+
+## Contribution
 
 # Data
 
