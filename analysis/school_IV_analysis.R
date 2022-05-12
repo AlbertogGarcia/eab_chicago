@@ -18,7 +18,7 @@ impervious_increase <- raster("tree_data/IS_change_year.tif")%>%
 school_test_scores <- readRDS("schools/school_test_scores.rds")
 
 
-buffer_size <- 3000
+buffer_size <- 5000
 
 school_buffer <- st_crop(st_buffer(
   school_test_scores %>%
@@ -97,10 +97,10 @@ schooltree_panel <- school_infestation %>%
          acres_loss = loss * 0.222395,
          acres_net_gain = net_gain * 0.222395,
          acres_IS = impervious * 0.222395,
-         treated = ifelse(year >= first_detected & year > 0, 1, 0),
          cumloss = cumsum(acres_loss),
          cumgain = cumsum(acres_gain),
-         cumnet = cumsum(acres_net_gain)
+         cumnet = cumsum(acres_net_gain),
+         treated = ifelse(year >= first_detected & year > 0, 1, 0)
          )
 
 school_test_scores$geometry <- NULL
@@ -110,38 +110,23 @@ full_panel <- schooltree_panel %>%
 
 
 
-
-library(did)
-set.seed(0930)
-loss_attgt <- att_gt(yname = "cumgain",
-                     tname = "year",
-                     idname = "my_id",
-                     gname = "first_detected",
-                     control_group = "notyettreated",
-                     data = full_panel
-)
-loss_ovr <- aggte(loss_attgt, type = "simple")
-summary(loss_ovr)
-loss_es <- aggte(loss_attgt, type = "dynamic")
-ggdid(loss_es)
-
-ovr_results <- data.frame("outcome" = "loss", "ATT" = loss_ovr$overall.att, "se" = loss_ovr$overall.se)
-es_results <- data.frame("outcome" = "loss", "ATT" = loss_es$att.egt, "e" = loss_es$egt, "se" = loss_es$se.egt)
-
-library(fixest)
-twfe_loss <- feols(acres_loss ~ treated | year + grid, data = eeb_panel)
-summary(twfe_loss)
-
-
-
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### IVREG
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+iv_panel <- full_panel %>%
+  group_by(my_id)%>%
+  arrange(year, .by_group = T)%>%
+  filter(year >= 2003 & year <= 2014)%>%
+  mutate(cumloss = cumsum(acres_loss),
+         cumgain = cumsum(acres_gain),
+         cumnet = cumsum(acres_net_gain)
+  )
+
 library(estimatr) # outcome ~ treatment | instrument
 library(AER)
-variable_names <- c("ISAT")
-treatment_names <- c("cumnet", "cumloss", "cumgain")
+variable_names <- c("ISAT")#, "Math_3", "Math_5", "Math_8", "Math_11", "ACT", "Read_3", "Read_5", "Read_8", "Read_11")
+treatment_names <- c("cumnet", "cumloss", "cumgain", "acres_loss", "acres_gain", "acres_net_gain")
 
 allModelsList <- lapply(paste(variable_names, "~", treatment_names, "+ as.factor(year) + as.factor(my_id) | treated + as.factor(year) + as.factor(my_id)"), as.formula)
 
@@ -151,8 +136,7 @@ for(i in variable_names){
   
   for(k in treatment_names){
     
-    this_data <- full_panel %>%
-      drop_na(i)
+    this_data <- iv_panel 
     
     first_stage_formula <- as.formula(paste(k, "~ treated + as.factor(year) + as.factor(my_id)"))
     fs_sum <- summary(lm(first_stage_formula, data = this_data))
@@ -180,8 +164,34 @@ for(i in variable_names){
 }
 
 library(rio)
-export(iv_results, "iv_results_3km.rds")
+export(iv_results, "iv_results_5km.rds")
 
 test <- iv_results %>%
   mutate(significant.95 = ifelse(abs(coeff) >= 1.96*se, 1, 0),
          significant.9 = ifelse(abs(coeff) >= 1.645*se, 1, 0))
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#######
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+library(did)
+set.seed(0930)
+loss_attgt <- att_gt(yname = "acres_gain",
+                     tname = "year",
+                     idname = "my_id",
+                     gname = "first_detected",
+                     control_group = "notyettreated",
+                     data = iv_panel
+)
+loss_ovr <- aggte(loss_attgt, type = "simple")
+summary(loss_ovr)
+loss_es <- aggte(loss_attgt, type = "dynamic")
+ggdid(loss_es)
+
+ovr_results <- data.frame("outcome" = "loss", "ATT" = loss_ovr$overall.att, "se" = loss_ovr$overall.se)
+es_results <- data.frame("outcome" = "loss", "ATT" = loss_es$att.egt, "e" = loss_es$egt, "se" = loss_es$se.egt)
+
+library(fixest)
+twfe_loss <- feols(acres_loss ~ treated | year + grid, data = eeb_panel)
+summary(twfe_loss)
+
