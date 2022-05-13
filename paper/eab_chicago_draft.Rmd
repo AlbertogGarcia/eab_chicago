@@ -110,6 +110,22 @@ In this section, I use 5km grid cells as the unit of analysis. A grid cell is va
 
 Table @\ref(tab:treegrid) shows results for both tree cover loss and tree cover gain in acres per year. Note that these estimates should be interpreted not as overall tree cover, but as the rate of tree cover gain and loss in a given year. These results indicate that a confirmed EAB infestation leads to a loss of XX acres of tree cover per year, and a reduction in tree cover gain of an additional XX acres per year within a 5km grid cell.
 
+```{r treegrid}
+
+df <- readRDS("results/eab_tree_results_grid5km.rds")%>%
+  filter(outcome %in% c("gain", "loss"))
+
+ATT_gain <- round(df[1,2], digits = 5)
+ATT_loss <- round(df[2,2], digits = 5)
+se_gain <- paste0("(", round(df[1,3], digits = 5), ")")
+se_loss <- paste0("(", round(df[2,3], digits = 5), ")")
+
+kab <- data.frame("loss" = c(ATT_loss, se_loss),
+                  "gain" = c(ATT_gain, se_gain))
+kable(kab, booktabs = T, col.names = c("Tree cover loss", "Tree cover gain"))
+```
+
+
 Figure XX displays event study estimates using the @callaway2020 estimator in order to understand the dynamics of tree cover change following infestation. This figure also allows us to gauge the plausibility of the common trends assumption on which this identification strategy relies. I find the assumption to be plausible given the similar pre-trends in outcomes as well as the fact that the timing of EAB infestation confirmation was likely idiosyncratic and driven by the biological nature of the beetle. 
 
 ```{r tree-grid-es, echo=FALSE, fig.cap="Left: Confirmed EAB infestation leads to a temporary increase in tree cover loss; Right: Confirmed EAB infestation leads to a decline in tree cover gain", out.width = '49%', fig.show='hold',fig.align='center'}
@@ -119,6 +135,12 @@ knitr::include_graphics(
                         )
 
 ```
+
+## Tree cover loss around schools
+
+In the previous section, I showed that EAB infestation leads to a temporary increase in tree cover loss and a decline in tree cover gain in affected areas. I now focus on individual schools, and in this section, seek to show that infestation leads to tree cover loss in the vicinity of individual schools. I repeat the general analysis from the previous section, but now consider an individual school treated in the years in and after an EAB infestation was confirmed within 5km of the school. Tree cover impacts are measured in the 5km buffer surrounding the school location. 
+
+Table XX again shows that confirmed EAB infestation leads to increased tree cover loss and decreased tree cover gain. I also measure total canopy cover relative to 2003, the year in which I first observe test scores from Illinois schools. 
 
 # Education impacts of EAB infestation
 
@@ -136,9 +158,10 @@ knitr::include_graphics(
 
 ```
 
-
-
 # The impact of tree cover on test scores: evidence from instrumental variables
+
+So far, I have shown that confirmed EAB infestation leads to loss of tree cover and lower test scores at exposed schools. In this section, I will seek to estimate the test score impacts of tree cover. 
+
 
 ## First stage
 

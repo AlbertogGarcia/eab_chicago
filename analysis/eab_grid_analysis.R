@@ -4,7 +4,13 @@ library(readxl)
 library(tidyverse)
 setwd("C:/Users/agarcia/Dropbox/eab_chicago_data")
 
-illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Ln.shp")%>%
+library(ggmap)
+AIzaSyAXYhVQFTZrMitEiOZl1VApTNBgEAACT7w
+illinois_map <- get_map("Illinois", zoom = 7,maptype = "terrain", 
+                              crop = FALSE)
+ggmap(illinois_map)
+
+illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Py.shp")%>%
   st_transform(crs(raster("tree_data/tree_loss_year.tif")))
 tree_loss <- raster("tree_data/tree_loss_year.tif")%>%
   crop(illinois.shp)
@@ -19,12 +25,46 @@ eab_infestations <- read_sf("eeb_infestations/eeb_address_geocode.shp")%>%
   separate(Date, c("Year", NA, NA))%>%
   st_transform(crs(tree_loss))
 
+mytheme <- theme(text = element_text(family = 'Avenir')
+                 ,panel.grid.major = element_line(color = '#cccccc' 
+                                                  ,linetype = 'dashed'
+                                                  ,size = .3
+                 )
+                 ,panel.background = element_rect(fill = 'grey95')
+                 # ,plot.title = element_text(size = 32)
+                 # ,plot.subtitle = element_text(size = 14)
+                 # ,axis.title = element_blank()
+                 # ,axis.text = element_text(size = 10)
+)
+
+plot <- ggplot()+
+  geom_sf(data = illinois.shp, fill = "papayawhip")+
+  geom_sf(data = eab_infestations, aes(color = Year),size = 1.5)+
+  labs(title = "  Illinois confirmed EAB infestations",
+       fill = "Infestation year") + 
+  theme_void()
+plot
+
+
+
+silvis_bound <- st_bbox(tree_loss)
+box <- st_make_grid(silvis_bound, n = c(1,1))
+
+eab_infestations_box <- eab_infestations %>%
+  st_crop(box)
+
+plot <- ggplot()+
+  geom_sf(data = eab_infestations_box, aes(color = Year),size = 3)+
+  geom_sf(data = box, fill = NA)+
+  labs(title = "  Confirmed EAB infestation locations within tree cover data extent",
+       fill = "Infestation year") + 
+  theme_void()
+plot
 
 
 # grid_spacing = 3000
 grid_spacing = 5000
 
-silvis_bound <- st_bbox(tree_loss)
 
 # test <- st_make_grid(silvis_bound, n = c(1,1))
 # st_write(test, "boundbox_treeloss.shp")
@@ -39,6 +79,13 @@ gridded_infestations <- st_make_grid(silvis_bound, square = T, cellsize = c(grid
   slice_head()%>%
   dplyr::select(-c(Year))%>%
   ungroup()
+
+plot <- ggplot()+
+  geom_sf(data = gridded_infestations, aes(fill = first_detected))+
+  labs(title = "  Year of first treatment by grid cell",
+       fill = "First detection year") + 
+  theme_void()
+plot
 
 #st_write(gridded_infestations, "gridded_infestations.shp")
 
