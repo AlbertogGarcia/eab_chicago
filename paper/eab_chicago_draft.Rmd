@@ -9,7 +9,7 @@ output:
   toc: false
   html_document: default
   documentclass: article
-#bibliography: deforestation_econometrics.bib
+bibliography: eab_chicago.bib
 header-includes: 
   \usepackage{bbm}  
   \usepackage{graphicx}
