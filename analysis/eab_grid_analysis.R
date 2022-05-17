@@ -2,13 +2,13 @@ library(sf)
 library(raster)
 library(readxl)
 library(tidyverse)
-setwd("C:/Users/agarcia/Dropbox/eab_chicago_data")
-
-library(ggmap)
-AIzaSyAXYhVQFTZrMitEiOZl1VApTNBgEAACT7w
-illinois_map <- get_map("Illinois", zoom = 7,maptype = "terrain", 
-                              crop = FALSE)
-ggmap(illinois_map)
+setwd("C:/Users/garci/Dropbox/eab_chicago_data")
+# 
+# library(ggmap)
+# AIzaSyAXYhVQFTZrMitEiOZl1VApTNBgEAACT7w
+# illinois_map <- get_map("Illinois", zoom = 7,maptype = "terrain", 
+#                               crop = FALSE)
+# ggmap(illinois_map)
 
 illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Py.shp")%>%
   st_transform(crs(raster("tree_data/tree_loss_year.tif")))
@@ -45,7 +45,8 @@ plot <- ggplot()+
   theme_void()
 plot
 
-
+illinois_box <- illinois.shp %>%
+  st_crop(box)
 
 silvis_bound <- st_bbox(tree_loss)
 box <- st_make_grid(silvis_bound, n = c(1,1))
@@ -54,9 +55,19 @@ eab_infestations_box <- eab_infestations %>%
   st_crop(box)
 
 plot <- ggplot()+
+  geom_sf(data = illinois_box, fill = "papayawhip")+
+  geom_sf(data = box, fill = NA, size = 1.5)+
   geom_sf(data = eab_infestations_box, aes(color = Year),size = 3)+
-  geom_sf(data = box, fill = NA)+
-  labs(title = "  Confirmed EAB infestation locations within tree cover data extent",
+  labs(#title = "  Confirmed EAB infestation locations within tree cover data extent",
+       fill = "Infestation year") + 
+  theme_void()
+plot
+
+plot <- ggplot()+
+  geom_sf(data = illinois.shp, fill = "papayawhip")+
+  geom_sf(data = eab_infestations, aes(color = Year), size = 1.5, show.legend = FALSE)+
+  geom_sf(data = box, fill = NA, size = 1)+
+  labs(title = "Infestations within tree cover data extent",
        fill = "Infestation year") + 
   theme_void()
 plot
