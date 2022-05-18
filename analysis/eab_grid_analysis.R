@@ -25,17 +25,7 @@ eab_infestations <- read_sf("eeb_infestations/eeb_address_geocode.shp")%>%
   separate(Date, c("Year", NA, NA))%>%
   st_transform(crs(tree_loss))
 
-mytheme <- theme(text = element_text(family = 'Avenir')
-                 ,panel.grid.major = element_line(color = '#cccccc' 
-                                                  ,linetype = 'dashed'
-                                                  ,size = .3
-                 )
-                 ,panel.background = element_rect(fill = 'grey95')
-                 # ,plot.title = element_text(size = 32)
-                 # ,plot.subtitle = element_text(size = 14)
-                 # ,axis.title = element_blank()
-                 # ,axis.text = element_text(size = 10)
-)
+
 
 plot <- ggplot()+
   geom_sf(data = illinois.shp, fill = "papayawhip")+
@@ -45,11 +35,12 @@ plot <- ggplot()+
   theme_void()
 plot
 
-illinois_box <- illinois.shp %>%
-  st_crop(box)
 
 silvis_bound <- st_bbox(tree_loss)
 box <- st_make_grid(silvis_bound, n = c(1,1))
+illinois_box <- illinois.shp %>%
+  st_crop(box)
+
 
 eab_infestations_box <- eab_infestations %>%
   st_crop(box)

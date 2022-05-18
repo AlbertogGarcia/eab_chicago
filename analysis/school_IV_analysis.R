@@ -6,7 +6,7 @@ library(here)
 
 setwd("C:/Users/garci/Dropbox/eab_chicago_data")
 
-illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Ln.shp")%>%
+illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Py.shp")%>%
   st_transform(crs(raster("tree_data/tree_loss_year.tif")))
 tree_loss <- raster("tree_data/tree_loss_year.tif")%>%
   crop(illinois.shp)
@@ -15,8 +15,12 @@ tree_gain <- raster("tree_data/tree_gain_year.tif")%>%
 impervious_increase <- raster("tree_data/IS_change_year.tif")%>%
   crop(illinois.shp)
 
-school_test_scores <- readRDS("schools/school_test_scores.rds")
+silvis_bound <- st_bbox(tree_loss)
+box <- st_make_grid(silvis_bound, n = c(1,1))
+illinois_box <- illinois.shp %>%
+  st_crop(box)
 
+school_test_scores <- readRDS("schools/school_test_scores.rds")
 
 buffer_size <- 5000
 
@@ -34,7 +38,7 @@ max_year = 2015
 year_list <- seq(from = min_year, to = max_year, by = 1)
 
 for(i in year_list){
-  
+  print(i)
   this_tree_gain <- tree_gain
   this_tree_gain[this_tree_gain[] != i ] = 0
   this_tree_gain[this_tree_gain[] == i ] = 1
@@ -51,13 +55,13 @@ for(i in year_list){
   school_buffer[ , ncol(school_buffer) + 1] <- new      # Append new column
   colnames(school_buffer)[ncol(school_buffer)] <- paste0("loss_", i)
   
-  this_impervious_increase <- impervious_increase
-  this_impervious_increase[this_impervious_increase[] != i ] = 0
-  this_impervious_increase[this_impervious_increase[] == i ] = 1
-  
-  new <- exact_extract(this_impervious_increase, school_buffer, 'sum')
-  school_buffer[ , ncol(school_buffer) + 1] <- new      # Append new column
-  colnames(school_buffer)[ncol(school_buffer)] <- paste0("impervious_", i)
+  # this_impervious_increase <- impervious_increase
+  # this_impervious_increase[this_impervious_increase[] != i ] = 0
+  # this_impervious_increase[this_impervious_increase[] == i ] = 1
+  # 
+  # new <- exact_extract(this_impervious_increase, school_buffer, 'sum')
+  # school_buffer[ , ncol(school_buffer) + 1] <- new      # Append new column
+  # colnames(school_buffer)[ncol(school_buffer)] <- paste0("impervious_", i)
   
 }
 
@@ -72,16 +76,27 @@ school_infestation <- school_buffer %>%
   group_by(my_id)%>%
   mutate_at(vars(Year, my_id), as.numeric)%>%
   mutate(first_detected = min(Year, na.rm = T))%>%
-  mutate_at(vars(first_detected), ~replace(., is.na(.), 0))%>%
+  mutate_at(vars(first_detected), ~replace(., is.na(.) | is.infinite(.), 0))%>%
+  mutate(char_first_detected = ifelse(first_detected == 0, "never", as.character(first_detected)))%>%
   filter(first_detected == min(first_detected))%>%
   slice_head()%>%
   ungroup()%>%
   select(-Year)
 
+plot <- ggplot()+
+  geom_sf(data = illinois_box, fill = "papayawhip")+
+  geom_sf(data = school_infestation , color = "grey80", size = .75, fill = NA)+
+  geom_sf(data = school_infestation %>% st_centroid(), aes(color = char_first_detected), size = 2.5, fill = NA)+
+  labs(title = "Year of school's exposure to infestation (within 5km)",
+       color = "School exposure year") + 
+  theme_void()
+plot
+
+
 school_infestation$geometry <- NULL
 
 schooltree_panel <- school_infestation %>%
-  pivot_longer(cols = paste0("gain_",min_year):paste0("impervious_",max_year),
+  pivot_longer(cols = paste0("gain_",min_year):paste0("loss_",max_year),
                names_to = "type_year", 
                values_to = "total_change")%>%
   separate(type_year, into = c("change_type", "year"), sep = "_")%>%
@@ -89,18 +104,10 @@ schooltree_panel <- school_infestation %>%
   pivot_wider(names_from = "change_type", values_from = "total_change")%>%
   group_by(year, my_id)%>%
   slice_head()%>%
-  ungroup()%>%
-  group_by(my_id)%>%
-  arrange(year, .by_group = T)%>%
   mutate(net_gain = gain - loss,
          acres_gain = gain * 0.222395,
          acres_loss = loss * 0.222395,
-         acres_net_gain = net_gain * 0.222395,
-         acres_IS = impervious * 0.222395,
-         cumloss = cumsum(acres_loss),
-         cumgain = cumsum(acres_gain),
-         cumnet = cumsum(acres_net_gain),
-         treated = ifelse(year >= first_detected & year > 0, 1, 0)
+         acres_net_gain = net_gain * 0.222395
          )
 
 school_test_scores$geometry <- NULL
@@ -108,7 +115,54 @@ school_test_scores$geometry <- NULL
 full_panel <- schooltree_panel %>%
   left_join(school_test_scores, by = c("my_id", "year"))
 
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+####### School tree cover impacts
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+scoretree_panel <- full_panel %>%
+  group_by(my_id)%>%
+  arrange(year, .by_group = T)%>%
+  mutate(cumloss = cumsum(acres_loss),
+         cumgain = cumsum(acres_gain),
+         cumnet = cumsum(acres_net_gain)
+  )
 
+
+library(did)
+set.seed(0930)
+loss_attgt <- att_gt(yname = "acres_loss",
+                     tname = "year",
+                     idname = "my_id",
+                     gname = "first_detected",
+                     control_group = "notyettreated",
+                     data = scoretree_panel
+)
+loss_ovr <- aggte(loss_attgt, type = "simple")
+summary(loss_ovr)
+loss_es <- aggte(loss_attgt, type = "dynamic")
+
+schooltree_ovr_results <- data.frame("outcome" = "loss", "ATT" = loss_ovr$overall.att, "se" = loss_ovr$overall.se)
+
+schooltree_es_results <- data.frame("outcome" = "loss", "ATT" = loss_es$att.egt, "e" = loss_es$egt, "se" = loss_es$se.egt)
+
+
+gain_attgt <- att_gt(yname = "acres_gain",
+                     tname = "year",
+                     idname = "my_id",
+                     gname = "first_detected",
+                     control_group = "notyettreated",
+                     data = scoretree_panel
+)
+gain_ovr <- aggte(gain_attgt, type = "simple")
+summary(gain_ovr)
+gain_es <- aggte(gain_attgt, type = "dynamic")
+
+schooltree_ovr_results <- data.frame("outcome" = "gain", "ATT" = gain_ovr$overall.att, "se" = gain_ovr$overall.se)%>%
+  rbind(schooltree_ovr_results)
+schooltree_es_results <- data.frame("outcome" = "gain", "ATT" = gain_es$att.egt, "e" = gain_es$egt, "se" = gain_es$se.egt)%>%
+  rbind(schooltree_es_results)
+
+library(rio)
+#export(schooltree_ovr_results, "eab_tree_results_school3km.rds")
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### IVREG
@@ -117,16 +171,20 @@ full_panel <- schooltree_panel %>%
 iv_panel <- full_panel %>%
   group_by(my_id)%>%
   arrange(year, .by_group = T)%>%
-  filter(year >= 2003 & year <= 2014)%>%
+  #filter(year >= 2003 & year <= 2014)%>%
   mutate(cumloss = cumsum(acres_loss),
          cumgain = cumsum(acres_gain),
-         cumnet = cumsum(acres_net_gain)
+         cumnet = cumsum(acres_net_gain),
+         treated = ifelse(year > first_detected & year > 0, 1, 0)
   )
+library(fixest)
 
-library(estimatr) # outcome ~ treatment | instrument
-library(AER)
-variable_names <- c("ISAT")#, "Math_3", "Math_5", "Math_8", "Math_11", "ACT", "Read_3", "Read_5", "Read_8", "Read_11")
-treatment_names <- c("cumnet", "cumloss", "cumgain", "acres_loss", "acres_gain", "acres_net_gain")
+variable_names <- c("ISAT")
+treatment_names <- c("cumnet", "cumloss", "cumgain")
+
+iv_est <- feols(ISAT ~ 1 | my_id + year | cumgain ~ treated, iv_panel)
+summary(iv_est, stage = 1)
+fstat <- fitstat(iv_est, "ivf1")
 
 allModelsList <- lapply(paste(variable_names, "~", treatment_names, "+ as.factor(year) + as.factor(my_id) | treated + as.factor(year) + as.factor(my_id)"), as.formula)
 
@@ -138,24 +196,21 @@ for(i in variable_names){
     
     this_data <- iv_panel 
     
-    first_stage_formula <- as.formula(paste(k, "~ treated + as.factor(year) + as.factor(my_id)"))
-    fs_sum <- summary(lm(first_stage_formula, data = this_data))
-    Fstat <- fs_sum$fstatistic[1]
-    x <- as.formula(paste(i,  '~', k, "+ as.factor(year) + as.factor(my_id) | treated + as.factor(year) + as.factor(my_id)"))
+    x <- as.formula(paste(i,  '~ 1 | my_id + year |', k, "~ treated"))
 
     print(x)
     
-    iv2sls <- summary(ivreg(x,
-                        data = full_panel %>% drop_na(i)
-                        )
-    )$coefficients[2,]
+    iv_est <- feols(x, this_data)
+    coeff <- iv_est$coefficients
+    se <- iv_est$se
+    fstat <- fitstat(iv_est, "ivf")[[1]]$stat
     
  
     iv_results <- data.frame("outcome" = i,
                          "treatment" = k,
-                         "coeff" = iv2sls[1],
-                         "se" = iv2sls[2],
-                         "Fstat" = Fstat[1])%>%
+                         "coeff" = coeff,
+                         "se" = se,
+                         "Fstat" = fstat)%>%
       rbind(iv_results)
 
   }
@@ -170,28 +225,16 @@ test <- iv_results %>%
   mutate(significant.95 = ifelse(abs(coeff) >= 1.96*se, 1, 0),
          significant.9 = ifelse(abs(coeff) >= 1.645*se, 1, 0))
 
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#######
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-library(did)
-set.seed(0930)
-loss_attgt <- att_gt(yname = "acres_gain",
+attgt <- att_gt(yname = "cumgain",
                      tname = "year",
                      idname = "my_id",
                      gname = "first_detected",
                      control_group = "notyettreated",
                      data = iv_panel
 )
-loss_ovr <- aggte(loss_attgt, type = "simple")
-summary(loss_ovr)
-loss_es <- aggte(loss_attgt, type = "dynamic")
-ggdid(loss_es)
-
-ovr_results <- data.frame("outcome" = "loss", "ATT" = loss_ovr$overall.att, "se" = loss_ovr$overall.se)
-es_results <- data.frame("outcome" = "loss", "ATT" = loss_es$att.egt, "e" = loss_es$egt, "se" = loss_es$se.egt)
-
-library(fixest)
-twfe_loss <- feols(acres_loss ~ treated | year + grid, data = eeb_panel)
-summary(twfe_loss)
+ovr <- aggte(attgt, type = "simple")
+summary(ovr)
+es <- aggte(attgt, type = "dynamic")
+ggdid(es)
+ovr_results <- data.frame("outcome" = "cumnet", "ATT" = ovr$overall.att, "se" = ovr$overall.se)
 
