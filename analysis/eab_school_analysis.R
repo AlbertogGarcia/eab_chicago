@@ -8,7 +8,7 @@ source(here::here('analysis', 'schart.R'))
 
 setwd("C:/Users/garci/Dropbox/eab_chicago_data")
 
-illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Ln.shp")%>%
+illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Py.shp")%>%
   st_transform(crs(raster("tree_data/tree_loss_year.tif")))
 tree_loss <- raster("tree_data/tree_loss_year.tif")%>%
   crop(illinois.shp)
@@ -27,24 +27,8 @@ eab_infestations <- read_sf("eeb_infestations/eeb_address_geocode.shp")%>%
 school_test_scores <- readRDS("schools/school_test_scores.rds")
 
 
-buffer_size <- 5000
-
-infestation_buffer <- st_buffer(eab_infestations, buffer_size)
-
-test_scores_infestation <- school_test_scores %>%
-  st_join(infestation_buffer)%>%
-  group_by(my_id, year)%>%
-  mutate_at(vars(Year, year, my_id), as.numeric)%>%
-  mutate(first_exposed = min(Year, na.rm = T),
-         treated = ifelse(year > first_exposed & year > 0, 1, 0))%>%
-  slice_head()%>%
-  mutate_at(vars(first_exposed), ~replace(., is.na(.), 0))
-
-test_scores_infestation$geometry <- NULL
-
-
 variable_names <- c("Read_3", "Read_5", "Read_8", "Read_11", "Math_3", "Math_5", "Math_8", "Math_11", "ISAT")
-buffer_list <- c(3000, 5000)
+buffer_list <- c(2500, 3000, 4000, 5000, 6000, 7000, 8000)
 ovr_results <- data.frame()
 es_results <- data.frame()
 
@@ -89,14 +73,13 @@ for(i in buffer_list){
 }
 
 
-ISAT_plot <- ggplot(es_results %>% filter(outcome == "Math_11", buffer == 5000, between(e, -9, 7)), aes(x = e, y = ATT)) + 
+ex_plot <- ggplot(es_results %>% filter(outcome == "Math_11", buffer == 5000, between(e, -9, 7)), aes(x = e, y = ATT)) + 
   geom_line() + 
   geom_ribbon(aes(ymin= ATT - 1.96*se, ymax=ATT + 1.96*se), alpha=0.2)+
   geom_vline(xintercept = -0.5, linetype = "dashed")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_minimal()
-ISAT_plot
-ggsave(ISAT_plot, path = "figs", "eab_testscore_isat.png")
+ex_plot
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Specification chart to visualize results
