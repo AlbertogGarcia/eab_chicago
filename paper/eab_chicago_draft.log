@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.999992 (MiKTeX 2.9.7380 64-bit) (preloaded format=xelatex 2020.8.14)  18 MAY 2022 10:40
+This is XeTeX, Version 3.14159265-2.6-0.999992 (MiKTeX 2.9.7380 64-bit) (preloaded format=xelatex 2020.8.14)  19 MAY 2022 21:56
 entering extended mode
 **./eab_chicago_draft.tex
 (eab_chicago_draft.tex
@@ -1075,67 +1075,65 @@ fg"
 File: mt-msb.cfg 2005/06/01 v1.0 microtype config. file: AMS symbols (b) (RS)
 ) [1
 
-]
+] [2]
 File: figs/IL_eab_infestations.png Graphic file (type bmp)
 <figs/IL_eab_infestations.png>
-[2] [3]
 File: figs/IL_infestations_boxL.png Graphic file (type bmp)
 <figs/IL_infestations_boxL.png>
 File: figs/IL_infestations_boxR.png Graphic file (type bmp)
 <figs/IL_infestations_boxR.png>
-[4]
+[3] [4] [5] [6]
 
-LaTeX Warning: Reference `(' on page 5 undefined on input line 180.
+LaTeX Warning: Reference `(' on page 7 undefined on input line 199.
 
-[5]
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(1)/m/n' will be
-(Font)              scaled to size 7.0pt on input line 185.
+(Font)              scaled to size 7.0pt on input line 204.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(1)/m/n' will be
-(Font)              scaled to size 5.0pt on input line 185.
+(Font)              scaled to size 5.0pt on input line 204.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 10.00092pt on input line 185.
+(Font)              scaled to size 10.00092pt on input line 204.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 7.00064pt on input line 185.
+(Font)              scaled to size 7.00064pt on input line 204.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(2)/m/n' will be
-(Font)              scaled to size 5.00046pt on input line 185.
+(Font)              scaled to size 5.00046pt on input line 204.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 9.99893pt on input line 185.
+(Font)              scaled to size 9.99893pt on input line 204.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 6.99925pt on input line 185.
+(Font)              scaled to size 6.99925pt on input line 204.
 LaTeX Font Info:    Font shape `TU/latinmodern-math.otf(3)/m/n' will be
-(Font)              scaled to size 4.99947pt on input line 185.
+(Font)              scaled to size 4.99947pt on input line 204.
+[7]
 File: figs/eab_loss_grid5km.png Graphic file (type bmp)
 <figs/eab_loss_grid5km.png>
 File: figs/eab_gain_grid5km.png Graphic file (type bmp)
 <figs/eab_gain_grid5km.png>
-[6]
 File: figs/school_exposure.png Graphic file (type bmp)
 <figs/school_exposure.png>
-[7]
+[8] [9]
 File: figs/eab_testscores.png Graphic file (type bmp)
 <figs/eab_testscores.png>
 File: figs/eab_test_ISAT.png Graphic file (type bmp)
 <figs/eab_test_ISAT.png>
 File: figs/eab_test_math11.png Graphic file (type bmp)
 <figs/eab_test_math11.png>
-[8] [9] [10]
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 346.
-[11] [12]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 346.
+[10] [11] [12] [13] [14]
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 437.
+[15]
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 437.
 (eab_chicago_draft.aux)
-Package atveryend Info: Empty hook `AtVeryEndDocument' on input line 346.
-Package atveryend Info: Empty hook `AtEndAfterFileList' on input line 346.
+Package atveryend Info: Empty hook `AtVeryEndDocument' on input line 437.
+Package atveryend Info: Empty hook `AtEndAfterFileList' on input line 437.
 
 LaTeX Warning: There were undefined references.
 
  ) 
 Here is how much of TeX's memory you used:
- 20249 strings out of 414219
- 348909 string characters out of 2898314
- 805581 words of memory out of 3000000
- 37455 multiletter control sequences out of 15000+200000
- 538863 words of font info for 74 fonts, out of 3000000 for 9000
+ 20262 strings out of 414219
+ 349135 string characters out of 2898314
+ 808712 words of memory out of 3000000
+ 37463 multiletter control sequences out of 15000+200000
+ 538871 words of font info for 75 fonts, out of 3000000 for 9000
  1348 hyphenation exceptions out of 8191
- 59i,13n,118p,1148b,355s stack positions out of 5000i,500n,10000p,200000b,50000s
+ 59i,13n,118p,1373b,364s stack positions out of 5000i,500n,10000p,200000b,50000s
 
-Output written on eab_chicago_draft.pdf (12 pages).
+Output written on eab_chicago_draft.pdf (15 pages).
