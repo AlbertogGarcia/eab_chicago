@@ -22,7 +22,7 @@ illinois_box <- illinois.shp %>%
 
 school_test_scores <- readRDS("schools/school_test_scores.rds")
 
-buffer_size <- 5000
+buffer_size <- 3000
 
 school_buffer <- st_crop(st_buffer(
   school_test_scores %>%
@@ -182,19 +182,14 @@ library(fixest)
 variable_names <- c("ISAT")
 treatment_names <- c("cumnet", "cumloss", "cumgain")
 
-iv_est <- feols(ISAT ~ 1 | my_id + year | cumgain ~ treated, iv_panel)
-summary(iv_est, stage = 1)
-fstat <- fitstat(iv_est, "ivf1")
-
-allModelsList <- lapply(paste(variable_names, "~", treatment_names, "+ as.factor(year) + as.factor(my_id) | treated + as.factor(year) + as.factor(my_id)"), as.formula)
 
 iv_results <- data.frame()
-
 for(i in variable_names){
   
   for(k in treatment_names){
     
     this_data <- iv_panel 
+    
     
     x <- as.formula(paste(i,  '~ 1 | my_id + year |', k, "~ treated"))
 
@@ -212,6 +207,8 @@ for(i in variable_names){
                          "se" = se,
                          "Fstat" = fstat)%>%
       rbind(iv_results)
+    
+    
 
   }
 
@@ -219,22 +216,28 @@ for(i in variable_names){
 }
 
 library(rio)
-export(iv_results, "iv_results_5km.rds")
+export(iv_results, "iv_results_3km.rds")
 
 test <- iv_results %>%
   mutate(significant.95 = ifelse(abs(coeff) >= 1.96*se, 1, 0),
          significant.9 = ifelse(abs(coeff) >= 1.645*se, 1, 0))
 
-attgt <- att_gt(yname = "cumgain",
-                     tname = "year",
-                     idname = "my_id",
-                     gname = "first_detected",
-                     control_group = "notyettreated",
-                     data = iv_panel
-)
-ovr <- aggte(attgt, type = "simple")
-summary(ovr)
-es <- aggte(attgt, type = "dynamic")
-ggdid(es)
-ovr_results <- data.frame("outcome" = "cumnet", "ATT" = ovr$overall.att, "se" = ovr$overall.se)
 
+fs_results <- data.frame()
+for(k in treatment_names){
+  
+  this_data <- iv_panel 
+  
+  fs <- as.formula(paste(k, "~ treated | my_id + year"))
+  fs_est <- feols(fs, this_data)
+  
+  coeff <- fs_est$coefficients
+  se <- fs_est$se
+  fs_results <- data.frame("treatment" = k,
+                         "coeff" = coeff,
+                         "se" = se)%>%
+  rbind(fs_results)
+  
+}
+
+export(fs_results, "fs_results_3km.rds")
