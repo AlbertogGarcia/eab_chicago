@@ -65,15 +65,17 @@ These improved outcomes may operate through several different channels. Urban tr
 
 One major threat to metropolitan and urban tree populations is the introduction of insect pests. The emerald ash borer (EAB) is one such pest, first detected in North America in 2002. EAB has been referred to as the most destructive forest pest ever introduced to the United States [@nowak2016], and ash trees have suffered extensively across the continent. EAB has spread extensively and killed tens of millions of US ash trees already, with little hope that ash populations will recover [@flower2013]. 
 
-In this paper, I show that plausibly exogenous EAB infestations in the metropolitan Chicago region lead to measurable tree cover loss as well as decreased tree cover gain. Further, these negative tree cover impacts lead to relatively poorer educational outcomes. This work makes several key contributions. First, this paper shows that invasive species, and EAB specifically, may lead to not only tree loss but a decline in tree cover gain. While work in economics [e.g., @jones2020; @jones_infant_2018] have linked county-level EAB detections to negative labor and health impacts, no study to my knowledge has identified its impacts on tree cover. Second, this paper causally identifies the effect of tree cover on educational outcomes. There exists substantial evidence on the association of vegetation and educational outcomes, however, these studies are plagued by the fact that greenery is positively correlated with a wealth of other socioeconomic indicators that drive differences in educational performance and attainment. This study overcomes that concern by utilizing plausibly exogenous shocks to tree cover. Lastly, this paper is the first to attribute changes in educational outcomes to invasive species. In future iterations, I hope to explore heterogeneity in both tree cover and educational outcomes across groups of varying socioeconomic status. 
+In this paper, I show that plausibly exogenous EAB infestations in the metropolitan Chicago region lead to measurable tree cover loss as well as decreased tree cover gain. Further, these negative tree cover impacts lead to relatively poorer educational outcomes. This work makes several key contributions. First, this paper shows that invasive species, and EAB specifically, may lead to not only tree loss but a decline in tree cover gain. While work in economics [e.g., @jones_labor_2020; @jones_infant_2018] have linked county-level EAB detections to negative labor and health impacts, no study to my knowledge has identified its impacts on tree cover. Second, this paper causally identifies the effect of tree cover on educational outcomes. There exists substantial evidence on the association of vegetation and educational outcomes, however, these studies are plagued by the fact that greenery is positively correlated with a wealth of other socioeconomic indicators that drive differences in educational performance and attainment. This study overcomes that concern by utilizing plausibly exogenous shocks to tree cover. Lastly, this paper is the first to attribute changes in educational outcomes to invasive species. In future iterations, I hope to explore heterogeneity in both tree cover and educational outcomes across groups of varying socioeconomic status. 
 
 # The emerald ash borer in the Chicago region
 
 The emerald ash borer is one of several introduced pests that has affected US tree cover but may represent a worst-case scenario [@herms2014]. EAB exclusively targets ash trees, and all species of North American ash are vulnerable. Infestation is essentially fatal to any infested tree, so the arrival of EAB has meant the death or removal of millions of ash trees across the country. It appears increasingly likely that EAB could functionally extirpate the North American ash [@herms2014].
 
-Ash are often the primary species used in parks and to line streets. Much of the economic impact of EAB is associated with removal and replacement of high-value trees in urban and residential areas, as ash comprise over 20\% of trees in many municipalities across the country [@kovacs2011]. While infestations expand over relatively short distances through natural dispersal (i.e., flight), infestations often go undetected for long periods. Long-distance spread occurs when infested material such as nursery stock or firewood is moved, potentially spurring new satellite populations. Because of the difficulty detecting EAB without systematic survey efforts, early attemtps to eradicate and slow EAB spread were largely unsuccessful. 
+Ash are often the primary species used in parks and to line streets. Much of the economic impact of EAB is associated with removal and replacement of high-value trees in urban and residential areas, as ash comprise over 20\% of trees in many municipalities across the country [@kovacs2011]. While infestations expand over relatively short distances through natural dispersal (i.e., flight), infestations often go undetected for long periods. Long-distance spread occurs when infested material such as nursery stock or firewood is moved, potentially spurring new satellite populations. Because of the difficulty detecting EAB without systematic survey efforts, early attempts to eradicate and slow EAB spread were largely unsuccessful. 
 
 The Chicago region is the third-largest metropolitan region in the United States, and lies in a region heavily affected by EAB. The impacts of EAB on the region's ash populations has been well recognized. Prior to the arrival of EAB, ash trees were the most numerous non-invasive tree species in the region [@treecensus2020], however, EAB has decimated ash populations. A Chicago region tree census revealed that the area's standing ash population nearly halved between 2010 and 2020, dropping from an estimated 13 million to under 7 million [@treecensus2020]. Of those 7 million remaining standing trees, 4 million are either dead or in decline. Further, as of 2020, more than 30\% of ash trees in the region are saplings, likely having regenerated from removed adults. Although many ash trees were replaced with alternative species, the overall number of large trees (> 6 in diameter) dropped across the region. 
+
+There exists previous work on impacts of EAB and other forest attacking pests in the economics literature. @jones_labor_2020 explores the labor market effects of county-level EAB detections in the United States, finding that wage earnings fall in the years after EAB detection. @jones_infant_2018 use difference-in-differences methods to determine that infant health outcomes suffered after county-level EAB detections. @druckenmiller2020 instruments for tree mortality in the American West using the temperature threshold at which bark beetles experience winter die-off. This paper finds that tree mortality decreased the value of timber tracts and home values and reduced hazard protection from air pollution, flood risk, and burn area. Of the mentioned studies, this study is the only one to directly estimate the value of forests or trees directly. 
 
 # Data
 
@@ -111,7 +113,9 @@ I also have data on several additional education outcomes on which I will conduc
 
 - Attendance rates
 - Dropout rates
+- Chronic truant rates
 - ISAT scores stratified by race
+- ISAT scores stratified by low-income/non-low-income
 
 # Impacts of EAB infestation
 
@@ -121,9 +125,9 @@ In this section, I use difference-in-differences methods developed in @callaway2
 
 Given the idiosynchratic nature of EAB spread through insect flight or accidental transportation in addition to the systematic nature of the IDA survey, confirmed detections can be thought of as quasi-random. These quasi-random infestation confirmations provide me with an exogenous shock to tree communities.  
 
-## Tree cover loss and gain
+## Rates of tree cover loss and gain
 
-In this section, I aim to establish that confirmed EAB infestations lead to reduced forest cover through two means: 1) increased tree loss and 2) reduced tree cover gain. There are two main channels through which EAB detection may result in tree loss. The first is through the EAB directly, as an ash tree will die between one and four years following infestation, depending on the size and health of the individual. The second is through intentional removal of infested trees. Most communities declare any confirmed infested tree a public nuisance and require that the tree be removed [e.g., @macomb2007]. As such, a confirmed infestation is likely to lead to quicker removal of infested or dead trees in the vicinity, in addition to death of trees due to EAB infestation. 
+In this section, I aim to establish that confirmed EAB infestations lead to reduced forest cover through two means: 1) increased rates of tree loss and 2) reduced rates of tree cover gain. There are two main channels through which EAB detection may result in tree loss. The first is through the EAB directly, as an ash tree will die between one and four years following infestation, depending on the size and health of the individual. The second is through intentional removal of infested trees. Most communities declare any confirmed infested tree a public nuisance and require that the tree be removed [e.g., @macomb2007]. As such, a confirmed infestation is likely to lead to quicker removal of infested or dead trees in the vicinity, in addition to death of trees due to EAB infestation. 
 
 Because removed trees are likely replaced with new trees, some may question why we should observe tree loss on an annual scale. Most replacement trees are unlikely to generate the canopy cover of large healthy trees. A newly planted tree may have trunk diameter as small as two inches and provide little to no canopy cover, while a large healthy ash may grow 60 feet tall and 25 to 40 feet wide (Morton Arboretum). At the scale of 30m, we might not expect to detect the death of singles trees, but it is unlikely that replacement trees replace the canopy cover provided by their predecessors. 
 
@@ -145,7 +149,7 @@ n = 609
 
 ```
 
-Table @\ref(tab:treegrid) shows results for both tree cover loss and tree cover gain in acres per year. Note that these estimates should be interpreted not as overall tree cover, but as the rate of tree cover gain and loss in a given year. These results indicate that a confirmed EAB infestation leads to a loss of `r round(loss$ATT, digits = 2)` acres of tree cover per year, and a reduction in tree cover gain of an additional `r abs(round(gain$ATT, digits = 2))` acres per year within a 5km grid cell (25 square km).
+Table @\ref(tab:treegrid) shows results for both rates of tree cover loss and tree cover gain in acres per year. Note that these estimates should be interpreted not as overall tree cover, but as the rate of tree cover gain and loss in a given year. These results indicate that a confirmed EAB infestation leads to increased loss of `r round(loss$ATT, digits = 2)` acres of tree cover per year, and a reduction in tree cover gain of an additional `r abs(round(gain$ATT, digits = 2))` acres per year within a 5km grid cell (25 square km).
 
 
 \begin{table}[H]\centering
@@ -170,9 +174,9 @@ Grid cell area      &     $25km^2$    &  $25km^2$  \\
 \end{table}
 
 
-Figure \@ref(fig:tree-grid-es) displays event study estimates using the @callaway2020 estimator in order to understand the dynamics of tree cover change following infestation. This figure also allows us to gauge the plausibility of the common trends assumption on which this identification strategy relies. The assumption seems plausible given the similar pre-trends in outcomes as well as the fact that the timing of EAB infestation confirmation was likely idiosyncratic and driven by the biological nature of the beetle's spread. Further iterations will look into pre-trends more thoroughly. 
+Figure \@ref(fig:tree-grid-es) displays event study estimates using the @callaway2020 estimator in order to understand the dynamics of tree cover change following infestation. This figure also allows us to gauge the plausibility of the common trends assumption on which this identification strategy relies. The assumption seems plausible given the similar pre-trends in outcomes as well as the quasi-random nature of EAB infestation confirmation timing. Further iterations will look into pre-trends more thoroughly. 
 
-We see that tree cover loss rides after confirmed EAB infestation, however, tree loss occurs for only the first few years after confirmation. Looking at the right panel, we see that tree cover gain declines in both the short and longer term. 
+We see that rates of tree cover loss rise after confirmed EAB infestation, however, tree loss occurs for only the first few years after confirmation. Looking at the right panel, we see that tree cover gain declines in both the short and longer term. 
 
 ```{r tree-grid-es, echo=FALSE, fig.cap="Left: Confirmed EAB infestation leads to a temporary increase in tree cover loss; Right: Confirmed EAB infestation leads to a decline in tree cover gain", out.width = '49%', fig.show='hold',fig.align='center'}
 
@@ -184,7 +188,7 @@ knitr::include_graphics(
 
 ## Tree cover impacts around schools
 
-In the previous section, I showed that EAB infestation leads to a temporary increase in tree cover loss and a decline in tree cover gain in affected areas. I now focus on individual schools, and in this section, seek to show that infestation leads to tree cover loss in the vicinity of individual schools. I repeat the general approach from the previous section, but now consider an individual school treated in the years in and after an EAB infestation was confirmed within 5km of the school. Tree cover impacts are measured in the 5km buffer surrounding the school location. Figure \@ref(fig:school-exposure) shows the locations of the public schools in my dataset as well as the 5km buffer in which infestations occur and tree cover loss and gain is measured. 
+In the previous section, I showed that EAB infestation leads to a temporary increase in tree cover loss rates and a decline in rates of tree cover gain in affected areas. I now focus on individual schools, and in this section, seek to show that infestation leads to increased tree cover loss in the vicinity of individual schools. I repeat the general approach from the previous section, but now consider an individual school treated in the years in and after an EAB infestation was confirmed within 5km of the school. Tree cover impacts are measured in the 5km buffer surrounding the school location. Figure \@ref(fig:school-exposure) shows the locations of the public schools in my dataset as well as the 5km buffer in which infestations occur and tree cover loss and gain is measured. 
 
 ```{r school-exposure, echo=FALSE, fig.cap="Timing of school exposure to EAB infestation (within 5km)", out.width = '90%', fig.show='hold',fig.align='center'}
 
@@ -212,7 +216,7 @@ n = 1271
 
 ```
 
-Table 2 again shows that confirmed EAB infestation leads to increased tree cover loss and decreased tree cover gain, this time in the vicinity of affected schools. A confirmed infestation within 5km of a school leads to `r abs(round(loss$ATT, digits = 2))` acres of tree cover loss and `r abs(round(gain$ATT, digits = 2))` acres of reduced tree cover gain within 5km of the average school. I repeat the analysis with a 3km buffer size to draw more immediate comparison to the 5km grid cells used in the previous section. The school-level results are slightly smaller in magnitude (acres gained or lost per $km^2$) than the grid cell results, but both are in the same ballpark. 
+Table 2 again shows that confirmed EAB infestation leads to increased rates of tree cover loss and decreased rates of tree cover gain, this time in the vicinity of affected schools. A confirmed infestation within 5km of a school leads to `r abs(round(loss$ATT, digits = 2))` acres of tree cover loss and `r abs(round(gain$ATT, digits = 2))` acres of reduced tree cover gain per year within 5km of the average school. I repeat the analysis with a 3km buffer size to draw more immediate comparison to the 5km grid cells used in the previous section. The school-level results are slightly smaller in magnitude (acres gained or lost per $km^2$) than the grid cell results, but both are in the same ballpark. 
 
 \begin{table}[H]\centering
 \caption{estimated ATT of EAB infestation on tree cover (surrounding schools)}
@@ -238,15 +242,15 @@ Table 2 again shows that confirmed EAB infestation leads to increased tree cover
 
 ## Education impacts 
 
-I have shown that confirmed EAB infestation leads to decreases in tree cover in the vicinity of schools. Here, I seek to show that EAB infestation also leads to decreases in test performance at affected schools. My identification strategy is similar to the previous section, but I now use ISAT performance as the outcome of interest. The outcome variable reflects the percent of students who scored at a level meeting or exceeding the minimum acceptable score determined by the state. Future iterations of this work will include other education outcomes such as attendance rates and dropouts. 
+I have shown that confirmed EAB infestation leads to tree cover changes in the vicinity of schools. Here, I seek to show that EAB infestation also leads to decreases in test performance at affected schools. My identification strategy is similar to the previous section, but I now use ISAT performance as the outcome of interest. The outcome variable reflects the percent of students who scored at a level meeting or exceeding the minimum acceptable score determined by the state. Future iterations of this work will include other education outcomes such as attendance rates and dropouts. 
 
-Figure \@ref(fig:schart-test) shows the estimated impacts of confirmed EAB infestation on ISAT test performance across a variety of subjects and grade levels. We see that confirmed EAB infestation in the vicinity of schools has a negative impact on that school's ISAT scores. Note that while Math performance seems to suffer, there is no statistically significant impact on Reading. Further, there are impacts across a variety of ages and grade levels. 
-
-```{r schart-test, echo=FALSE, fig.cap="Impacts of confirmed EAB infestation on ISAT scores. Math test scores are highlighted in orange.", out.width = '100%', fig.show='hold',fig.align='center'}
+```{r schart-test, echo=FALSE, fig.cap="Impacts of confirmed EAB infestation on ISAT scores. Math test scores are highlighted in orange. Both 95 (faded) and 90 percent confidence intervals are displayed around point estimates.", out.width = '100%', fig.show='hold',fig.align='center'}
 
 knitr::include_graphics("figs/eab_testscores.png" )
 
 ```
+
+Figure \@ref(fig:schart-test) shows the estimated impacts of confirmed EAB infestation on ISAT test performance across a variety of subjects and grade levels. We see that confirmed EAB infestation in the vicinity of schools has a negative impact on that school's ISAT scores. Confirmed EAB infestation led to a 0.89 percentage point reduction in the number of students meeting or exceeding minimum standards for the composite ISAT and a 2.2 percentage point reduction for 11th grade math. Note that while Math performances seem to suffer, there is no statistically significant impact on Reading. I find impacts across a variety of ages and grade levels. 
 
 Figure \@ref(fig:test-es) shows event study estimates for two of the ISAT outcomes used above: the composite ISAT performance and 11th grade math performance. Similar to the impacts of infestation on tree cover loss, it appears that the impacts on ISAT scores are temporary. ISAT scores appear to recover at affected schools roughly 6 years after confirmation of infestation.  
 
@@ -260,25 +264,25 @@ knitr::include_graphics(
 
 # Asymmetric dose response: evidence from instrumental variables
 
-So far, I have shown that confirmed EAB infestation leads to reduced tree cover and lower test scores at exposed schools. In this section, I will seek to isolate the test performance impacts of tree cover using an instrumental variables approach. What is lacking in so many studies that explore the relationship between tree cover and education outcomes outside of the laboratory is a causal interpretation. Because tree cover is so often associated with areas of higher socioeconomic status, it is difficult to attribute increased educational performance to tree cover. 
+So far, I have shown that confirmed EAB infestation leads to reduced rates of tree cover gain, increased rates of tree cover loss, and lower test scores at exposed schools. In this section, I will seek to isolate the test performance impacts of tree cover using an instrumental variables approach. What is lacking in so many studies that explore the relationship between tree cover and education outcomes outside of the laboratory is a causal interpretation. Because tree cover is so often associated with areas of higher socioeconomic status, it is difficult to attribute increased educational performance to tree cover. 
 
-Another question of interest is whether an acre of tree cover loss and an acre of foregone tree cover gain have equivalent impacts on test performance. Because I observe both increases and declines in canopy cover, I am able to explore whether these two sources of tree cover change have differential impacts. 
+Another question of interest is whether an acre of tree cover lost and an acre of tree cover gained have offsetting impacts on test performance. Because I observe both increases and declines in canopy cover, I am able to explore whether these two sources of tree cover change have differential impacts. 
 
 ## Strategy
 
-My strategy to identify the dose response to tree cover is to use EAB infestation as an instrument for canopy cover change. The first stage regression equations is as follows:
+My strategy to identify the dose response of ISAT performance to tree cover is to use EAB infestation as an instrument for canopy cover change. The first stage regression equation is as follows:
 
 \begin{align}
 canopy_{st} = \beta_0 + \beta_1 \times infestation_{st} + \gamma_t + \lambda_s + u_{st} 
 \end{align}
 
-* $canopy_{st}$ denotes the canopy cover either lost or gained within 5km of school $s$ at time $t$ since 2003, the year in which ISAT data is first available. Note that in contrast to previous sections, this is not the rate of lost or gained canopy per year, but the total canopy cover change relative to 2003. 
+* $canopy_{st}$ denotes the canopy cover either lost or gained within 5km of school $s$ at time $t$ since 2003. Note that in contrast to previous sections, this is not the rate of lost or gained canopy per year, but the total canopy cover relative to 2003. Because I do not have access to a baseline level of canopy cover, I cannot simply use overall canopy cover here. I use 2003 as the baseline year, because this is the first year in which I observe test score data. The reason I no longer use rates of tree cover gain or loss is related to the question of interest, which is the dose response to tree cover, not the response to rates of tree cover loss/gain. 
 
 * $infestation_{st}$ is an indicator equal to one beginning in the year an EAB infestation is first confirmed within 5km of school $s$. 
 
 * $\gamma_t$ and $\lambda_s$ denote year and school fixed effects respectively. 
 
-Regression 1 is essentially the TWFE verson of my results from section 4.3. The second stage is then:
+$\beta_1$ from regression 1 describes the total canopy cover impact of EAB infestation within a 5km buffer around the typical schools. The second stage is then:
 
 \begin{align}
 ISAT_{st} = \alpha_0 + \alpha_1 \times \widehat{canopy_{st}} + \gamma_t + \lambda_s + \epsilon_{st} 
@@ -290,7 +294,20 @@ Here, $\alpha_1$, the coefficient on $\widehat{canopy_{st}}$ describes the dose-
 
 ## Estimates
 
+### First stage
 ```{r iv}
+
+df <- readRDS("results/fs_results_5km.rds")
+
+fs_gain5 <- df[1,]
+fs_loss5 <- df[2,]
+fs_net5 <- df[3,]
+
+df <- readRDS("results/fs_results_3km.rds")
+
+fs_gain3 <- df[1,]
+fs_loss3 <- df[2,]
+fs_net3 <- df[3,]
 
 df <- readRDS("results/iv_results_5km.rds")
 
@@ -305,6 +322,42 @@ loss3 <- df[2,]
 net3 <- df[3,]
 
 ```
+
+Table 3 demonstrates again that confirmed EAB infestation leads to differential tree cover outcomes. Infestation causes a decline in tree cover canopy. In fact, infestation leads to 13.55 acres of canopy loss and 133.84 acres of reduced canopy gain within 5km of the typical affected school. In sum, confirmed EAB infestation leads to 147.39 acres of reduced canopy cover within 5km of affected schools, representing 0.76\% of the total area (would be nice to have a percent of total canopy cover here instead of overall area). 
+
+\begin{table}[H]\centering
+\caption{First stage estimates of the impact of EAB infestation on total canopy cover gained and lost}
+\smallskip
+\begin{tabular}{c c c c c}
+
+\toprule
+  Dependent variable: Cumulative canopy cover&  &   &  &\\ 
+  & Lost &   & Gained &\\ 
+\midrule
+ $\widehat{\beta_1}$  &       `r fs_loss5$coeff`*** &  `r fs_loss3$coeff`*** &  `r fs_gain5$coeff`*** & `r fs_gain3$coeff`***   \\
+             &      (`r fs_loss5$se`) &    (`r fs_loss3$se`)    &      (`r fs_gain5$se`) &    (`r fs_gain3$se`) \\ 
+\midrule
+First stage F-statistic   & `r loss5$Fstat` &`r loss3$Fstat` & `r gain5$Fstat` & `r gain3$Fstat`\\
+ School buffer distance   & 5km &3km & 5km & 3km\\
+ Number of schools      &     `r n`    & `r n` & `r n` & `r n`\\          
+\bottomrule
+\addlinespace[1ex]
+\multicolumn{5}{l}{\textsuperscript{***}$p<0.01$, 
+  \textsuperscript{**}$p<0.05$, 
+  \textsuperscript{*}$p<0.1$}
+\end{tabular}
+\end{table}
+
+
+
+### Second stage
+
+
+Table 4 suggests that an acre of tree cover gain within 5km of the school increases the proportion of students meeting the minimum standard for the composite ISAT by `r round(gain5$coeff, digits = 3)` percentage points. In contrast, an acre of tree cover loss within 5km of the school decreases the proportion of students meeting the minimum standard by `r abs(round(loss5$coeff, digits = 3))` percentage points, nearly five times as impactful as an acre of gain. 
+
+Table 4 also shows that the impacts are greater if the tree cover changes occur within a shorter distance of the school, which is intuitive. 
+
+
 \begin{table}[H]\centering
 \caption{IV estimates of the impact of tree canopy cover on ISAT performance}
 \smallskip
@@ -328,13 +381,11 @@ First stage F-statistic   & `r loss5$Fstat` &`r loss3$Fstat` & `r gain5$Fstat` &
 \end{tabular}
 \end{table}
 
-Table 3 suggests that an acre of tree cover gain within 5km of the school increases the proportion of students meeting the minimum standard for the composite ISAT by `r round(gain5$coeff, digits = 3)` percentage points. In contrast, an acre of tree cover loss within 5km of the school decreases the proportion of students meeting the minimum standard by `r abs(round(loss5$coeff, digits = 3))` percentage points, nearly five times as impactful as an acre of gain. For further reference, one acre within the 5km buffer surrounding the school represents $0.003$\% of the total area, so this is not necessarily a tiny effect. Table 3 also shows that the impacts are greater if the tree cover changes occur within a shorter distance of the school, which is intuitive. 
-
 ## Instrument validity
 
 Here, I will address the validity of confirmed EAB infestation as an instrument for tree cover. I need to address both the relevance and exclusion restrictions. Confirmed EAB infestation clearly meets the relevance requirement. We saw in previous sections that EAB infestation led to reductions in tree cover in affected areas. Further the F-statistics from the first stage regressions are all greater than 10, which is the typical threshold. 
 
-The primary exclusion restriction is that EAB infestation impact education outcomes solely through changes in tree cover. I believe that the exclusionn restriction is plausible. Infestation is driven by the biological process of EAB spread and idiosynchratic human-driven transporation of the pest. Other studies have used invasive species detection as instruments in economics research. @jones2020 use county-level detections of spotted-wing drosophila, a produce damaging fruit-fly, as an instrument for pesticide use to determine the impact of persticides on infant health. 
+The primary exclusion restriction is that EAB infestation impact education outcomes solely through changes in tree cover. I believe that the exclusionn restriction is plausible. Infestation is driven by the biological process of EAB spread and idiosyncratic human-driven transportation of the pest. Other studies have used invasive species detection as instruments in economics research. @jones_pesticide_2020 use county-level detections of spotted-wing drosophila, a produce damaging fruit-fly, as an instrument for pesticide use to determine the impact of pesticides on infant health. 
 
 I would love feedback on the perceptions of this instrument. Is the exclusion restriction plausible here?
 
