@@ -11,8 +11,17 @@ var_clean <- function(x){
   
 }
 
-test <- fread("schools/reportcard/rc10/rc10.txt")
-colnames <- read_excel("schools/reportcard/rc10/RC10_layout.xls", col_names = F)%>%
+rc_nums <- c("02", "03", "04", "05", "06", "07", "08", "09", "10", "11","12", "13", "14", "15")
+
+for(i in rc_nums){
+this_folder <- paste0("schools/reportcard/rc", i, sep = "")
+this_data <- fread(list.files(path = this_folder, recursive = TRUE,
+                            pattern = "\\.txt$", 
+                            full.names = TRUE))#fread(paste0(this_folder, "/rc", i, ".txt", sep = ""))
+
+colnames <- read_excel(list.files(path = this_folder, recursive = TRUE,
+                                  pattern = "\\.xls$", 
+                                  full.names = TRUE), col_names = F)%>%
   rename(col_number = 1,
          test = 2,
          group = 3,
@@ -25,13 +34,20 @@ colnames <- read_excel("schools/reportcard/rc10/RC10_layout.xls", col_names = F)
 
 sequence <- colnames$col_number
 
-full_seq <- 1:ncol(test)
+full_seq <- 1:ncol(this_data)
 drop <- full_seq[!full_seq %in% sequence]
 
-test <- test %>%
+this_data <- this_data %>%
   select(-c(`drop`))
 
 colnames <- colnames %>%
 arrange(as.numeric(col_number))
 
-colnames(test) <- colnames$new_var
+colnames(this_data) <- colnames$new_var
+
+this_data <- this_data %>%
+  mutate(year = as.numeric(paste0("20", i)))
+
+assign(paste0("reportcard_", i), this_data)
+
+}
