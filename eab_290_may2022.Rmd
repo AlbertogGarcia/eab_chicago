@@ -77,7 +77,7 @@ The Chicago region is the third-largest metropolitan region in the United States
 
 There exists previous work on impacts of EAB and other forest attacking pests in the economics literature. @jones_labor_2020 explores the labor market effects of county-level EAB detections in the United States, finding that wage earnings fall in the years after EAB detection. @jones_infant_2018 use difference-in-differences methods to determine that infant health outcomes suffered after county-level EAB detections. @druckenmiller2020 instruments for tree mortality in the American West using the temperature threshold at which bark beetles experience winter die-off. This paper finds that tree mortality decreased the value of timber tracts and home values and reduced hazard protection from air pollution, flood risk, and burn area. Of the mentioned studies, this study is the only one to directly estimate the impacts of healthy forests or trees directly. My work, in contrast to @druckenmiller2020, focuses on the value of trees in a metropolitan setting. 
 
-# Data and descriptive statistics
+# Data
 
 ## Emerald ash borer survey
 
@@ -117,15 +117,13 @@ I also have data on several additional education outcomes on which I will conduc
 - ISAT scores stratified by race
 - ISAT scores stratified by low-income/non-low-income
 
-# EAB infestation confirmation as a natural experiment
+# Impacts of EAB infestation
 
 ## Difference-in-differences methods
 
 In this section, I use difference-in-differences methods developed in @callaway2020. The estimator is robust to general treatment effect heterogeneity that may plague commonly utilized two-way fixed effects regressions. These results rely on a common trends assumption, which amounts to assuming that outcomes in the treatment group would have followed the same evolution as those in the control and not yet treated groups, had treatment never occured. I will formalize this section more in future iterations. 
 
 Given the idiosynchratic nature of EAB spread through insect flight or accidental transportation in addition to the systematic nature of the IDA survey, confirmed detections can be thought of as quasi-random. These quasi-random infestation confirmations provide me with an exogenous shock to tree communities.  
-
-# Impacts of the emerald ash borer
 
 ## Rates of tree cover loss and gain
 
@@ -264,19 +262,7 @@ knitr::include_graphics(
 
 ```
 
-## Heterogeneity: wealth disparities in tree cover and education impacts
-
-# Mechanisms
-
-## Pollution
-
-## Temperature
-
-## Psychological effects
-
-## Additional mechanisms
-
-# Dose response: evidence from instrumental variables
+# Asymmetric dose response: evidence from instrumental variables
 
 So far, I have shown that confirmed EAB infestation leads to reduced rates of tree cover gain, increased rates of tree cover loss, and lower test scores at exposed schools. In this section, I will seek to isolate the test performance impacts of tree cover using an instrumental variables approach. What is lacking in so many studies that explore the relationship between tree cover and education outcomes outside of the laboratory is a causal interpretation. Because tree cover is so often associated with areas of higher socioeconomic status, it is difficult to attribute increased educational performance to tree cover. 
 
