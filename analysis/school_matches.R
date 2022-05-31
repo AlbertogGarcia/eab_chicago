@@ -22,7 +22,7 @@ substrRight <- function(x, n){
 
 ed_loc.sf <- read_sf("schools/geocoded_schools/school_locations.shp")%>%
   st_transform(crs(tree_loss))%>%
-  select(CountyName:NCES_ID)%>%
+  dplyr::select(CountyName:NCES_ID)%>%
   rename(RCD = 3) %>%
   mutate(Dist_number = substrRight(RCD, 4),
          County = tolower(CountyName))%>%

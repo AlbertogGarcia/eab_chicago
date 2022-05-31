@@ -50,6 +50,35 @@ palette <- list("white" = "#FAFAFA",
                 "gold" = "#DAA520")
 ```
 
+TO DO LIST
+
+OUTCOMES
+- get remainder of reportcard data
+
+TREE COVER
+- NLCD data
+-- get baseline tree cover
+- ASH density
+
+TIMING
+- leaf out 
+- tests taken in March
+- infestation and leaf out timing
+
+WEALTH
+- implement other school data
+- Woongchan: school district data
+- descriptive statistics describing where infestations occur
+- heterogeneity in impacts by income/race
+
+MECHANISMS
+- PRISM temperature data
+-- estimate whether infestation impacted max temp (annual and month of ISAT)
+- Pollution
+-- Jude Beyham?
+- No single mechanism can create this change
+-- cite literature on temperature impacts
+
 
 
 # Abstract {-}
