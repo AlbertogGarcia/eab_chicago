@@ -2,7 +2,7 @@ library(data.table)
 library(tidyverse)
 library(readxl)
 
-setwd("C:/Users/agarcia/Dropbox/eab_chicago_data")
+setwd("C:/Users/garci/Dropbox/eab_chicago_data")
 
 var_clean <- function(x){
   
@@ -22,7 +22,7 @@ substrLeft <- function(x, n){
 
 select <- dplyr::select
 
-rc_nums <- c("03", "04", "05", "06", "07", "08", "09", "10", "11","12", "13", "14", "15")
+rc_nums <- c("03", "04", "05", "06", "07", "08", "09", "10", "11","12", "13", "14")
 return_list = list()
 return_data = data.frame()
 for(i in rc_nums){
@@ -83,31 +83,40 @@ select(RCDS, `school name`, city, county, year,
        `school - hispanic pct`, `school - asian pct`, `school total enrollment`, `low-income school pct`, `l.e.p. school pct`,
       `all_attendance rate school pct`, `male_attendance rate school pct`, `female_attendance rate school pct`,
        `white_attendance rate school pct`, `black_attendance rate school pct`, `hispanic_attendance rate school pct`, `asian_attendance rate school pct`,
-      `low income_attendance rate school pct`, `chronic truants num - school`, `dropout rate  school pct`,
-      `act comp school`, contains(composite_string) , -c(contains("IMAGE"))  
+      `low income_attendance rate school pct`, `chronic truants rate school pct`, `dropout rate  school pct`,
+      `act comp school`, contains(composite_string), 
+      contains("math school below"), contains("read school below"), 
+      contains("math school academic"), contains("read school academic"), 
+      -c(contains("IMAGE"), contains("IAA"), contains("GRADE"))  
       )%>%
-  rename_at(vars(contains("ISAT")), ~"ISAT_composite")%>%
-  rename_at(vars(contains("ALL TESTS")), ~"all_tests_composite")%>%
-  # mutate_at(vars(RCDS:county), as.double)%>%
+  rename_at(vars(contains(paste0("ISAT_", year))), ~"ISAT_composite")%>%
+  rename_at(vars(contains(paste0("PSAE_", year))), ~"PSAE_composite")%>%
+  rename_at(vars(contains("ALL TESTS")), ~"all_tests")%>%
   bind_rows(return_data)
 
 
 }
 
 reportcard_data <- return_data
+library(rio)
+export(reportcard_data, "schools/reportcard/cleaned/reportcard_data.rds")
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#############
+############# Linking schools with geocoded locations
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-ed_loc.sf <- read_sf("schools/geocoded_schools/school_locations.shp")%>%
+library(sf)
+  
+school_loc <- read_sf("schools/geocoded_schools/school_locations.shp")%>%
   select(CountyName:NCES_ID)%>%
   rename(RCD = 3) %>%
   mutate(County = tolower(CountyName),
-         RCDTS = paste0(RCD, Type_1, School),
          RCDS = paste0(RCD, School))
 
+reportcard_loc <- reportcard_data %>%
+  group_by(RCDS)%>%
+  slice_head()%>%
+  select(RCDS)%>%
+  inner_join(school_loc, by = "RCDS")
 
-test <- ed_loc.sf %>%
-  select(RCDS, FacilityNa)%>%
-  inner_join(reportcard_data, by = "RCDS")
+st_write(reportcard_loc, "schools/reportcard/cleaned/reportcard_loc.shp")

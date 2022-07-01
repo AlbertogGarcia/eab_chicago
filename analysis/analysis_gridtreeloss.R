@@ -3,12 +3,7 @@ library(raster)
 library(readxl)
 library(tidyverse)
 setwd("C:/Users/garci/Dropbox/eab_chicago_data")
-# 
-# library(ggmap)
-# AIzaSyAXYhVQFTZrMitEiOZl1VApTNBgEAACT7w
-# illinois_map <- get_map("Illinois", zoom = 7,maptype = "terrain", 
-#                               crop = FALSE)
-# ggmap(illinois_map)
+
 
 illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Py.shp")%>%
   st_transform(crs(raster("tree_data/tree_loss_year.tif")))
