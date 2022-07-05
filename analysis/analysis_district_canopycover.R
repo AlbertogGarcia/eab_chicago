@@ -14,16 +14,23 @@ source(here::here('analysis', 'schart.R'))
 
 setwd("C:/Users/garci/Dropbox/eab_chicago_data")
 
-counties_chicagoreg <- c("Cook", "DuPage", "Kane", "Kendall", "Lake", "McHenry", "Will")
+counties_chicagoreg7 <- c("Cook", "DuPage", "Kane", "Kendall", "Lake", "McHenry", "Will")
 
 raster_filelist <- list.files('tree_data/canopy_cover', pattern = '.tif', full.names = TRUE)
-bands <- 1:28
+bands <- 28
 
-illinois.shp <- read_sf("administrative/tl_2019_us_county/tl_2019_us_county.shp")%>%
+illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Py.shp")%>%
+  st_transform(crs(raster(raster_filelist[1])))
+
+roi <- read_sf("administrative/tl_2019_us_county/tl_2019_us_county.shp")%>%
   st_transform(crs(raster(raster_filelist[1])))%>%
-  filter(STATEFP == 17 & NAME %in% counties_chicagoreg)
+  filter(STATEFP == 17 & NAME %in% counties_chicagoreg7)%>%
+  st_intersection(illinois.shp)
 
-for(b in bands){
+extent_roi <- illinois.shp %>%
+  st_intersection(roi)
+
+for(b in 1:bands){
   
   for(i in 1:length(raster_filelist)){
     # get file name 
@@ -36,17 +43,16 @@ for(b in bands){
       
       canopy_raster <- rast_i
       
-      } else {
-        
-        # merge rasters
-        canopy_raster <- merge(canopy_raster, rast_i)
-          
-        
-      }
+    } else {
+      
+      # merge rasters
+      canopy_raster <- merge(canopy_raster, rast_i)
+      
+      
+    }
   }
   
-  canopy_raster <- canopy_raster %>%
-    crop(illinois.shp)
+  canopy_raster <- crop(canopy_raster, extent_roi)
   
   # assign(paste0("canopy_raster_", b), canopy_raster)
   
@@ -66,19 +72,16 @@ for(b in bands){
 
 
 
-
-roi <- illinois.shp %>%
-  st_crop(canopy_raster)
-
 eab_infestations <- read_sf("eeb_infestations/eeb_address_geocode.shp")%>%
   dplyr::select(Date, City, Match_addr, City_1, Address)%>%
   separate(Date, c("Year", "Month", NA))%>%
   st_transform(crs(roi))%>%
-  st_crop(roi)
+  st_intersection(extent_roi)
+
 
 reportcard_loc <- read_sf("schools/reportcard/cleaned/reportcard_loc.shp")%>%
   st_transform(crs(roi))%>%
-  st_crop(roi)%>%
+  st_intersection(extent_roi)%>%
   select(RCDS, FacilityNa)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -91,37 +94,31 @@ school_buffer <- reportcard_loc %>%
   st_buffer(buffer_size*1000)
 
 library(exactextractr)
-min_year = 1995
-max_year = 2015
-year_list <- seq(from = min_year, to = max_year, by = 1)
+min_year = 1990
 
-for(i in year_list){
+for(i in 1:bands){
   
-  this_canopy_cover <- canopy_raster
-  this_tree_gain[this_tree_gain[] != i ] = 0
-  this_tree_gain[this_tree_gain[] == i ] = 1
+  this_canopy_cover <- canopy_raster_list[[i]]
   
-  new <- exact_extract(this_tree_gain, school_buffer, 'mean')
+  new <- exact_extract(this_canopy_cover, school_buffer, 'mean')
   school_buffer[ , ncol(school_buffer) + 1] <- new      # Append new column
-  colnames(school_buffer)[ncol(school_buffer)] <- paste0("gain_", i)
   
-  this_tree_loss <- tree_loss
-  this_tree_loss[this_tree_loss[] != i ] = 0
-  this_tree_loss[this_tree_loss[] == i ] = 1
+  year <- i + min_year - 1
   
-  new <- exact_extract(this_tree_loss, school_buffer, 'sum')
-  school_buffer[ , ncol(school_buffer) + 1] <- new      # Append new column
-  colnames(school_buffer)[ncol(school_buffer)] <- paste0("loss_", i)
+  colnames(school_buffer)[ncol(school_buffer)] <- paste0("canopy_", year)
   
 }
 
-school_treegainloss <- school_buffer
+max_year = min_year + max(bands) - 1
+
+school_canopy <- school_buffer
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### determine year of first EAB exposure
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-school_exposure <- school_treegainloss %>%
+school_exposure <- school_canopy %>%
   st_join(eab_infestations)%>%
   group_by(RCDS)%>%
   mutate_at(vars(Year), as.numeric)%>%
@@ -132,22 +129,21 @@ school_exposure <- school_treegainloss %>%
 
 school_exposure$geometry <- NULL
 
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+### create panel
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 eab_panel <- school_exposure %>%
-  pivot_longer(cols = paste0("gain_",min_year):paste0("loss_",max_year),
+  pivot_longer(cols = paste0("canopy_",min_year):paste0("canopy_",max_year),
                names_to = "type_year", 
-               values_to = "total_change")%>%
-  separate(type_year, into = c("change_type", "year"), sep = "_")%>%
-  mutate_at(vars(year, first_exposed, first_detected), as.numeric)%>%
-  pivot_wider(names_from = "change_type", values_from = "total_change")%>%
+               values_to = "canopy_cover_pct")%>%
+  separate(type_year, into = c(NA, "year"), sep = "_")%>%
+  mutate_at(vars(year, first_detected, first_exposed), as.numeric)%>%
   group_by(year, RCDS)%>%
   slice_head()%>%
-  mutate(net_gain = gain - loss,
-         acres_gain = gain * 0.222395,
-         acres_loss = loss * 0.222395,
-         acres_net_gain = net_gain * 0.222395,
-         treated_tree = ifelse(year >= first_detected & first_detected > 0, 1, 0),
+  mutate(treated_tree = ifelse(year >= first_detected & first_detected > 0, 1, 0),
          treated_test = ifelse(year >= first_exposed & first_exposed > 0, 1, 0))
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Add in report card data
@@ -182,10 +178,7 @@ panel_full <- eab_panel %>%
   group_by(RCDS, year)%>%    
   slice_head()
 
-panel <- panel_full %>%
-  group_by(RCDS)%>%
-  mutate(ID = cur_group_id())%>%
-  mutate_at(vars(ID, k), as.numeric)
+
 
 
 cov_names <- paste0("cov_", seq(from = 1, to = length(control_vars), by = 1))
@@ -210,68 +203,42 @@ cov_names <- paste0("cov_", seq(from = 1, to = length(control_vars), by = 1))
 ### DID Tree cover analysis
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-tree_vars <- c("acres_gain", "acres_loss", "acres_net_gain")
 
-ovr_results <- data.frame()
-es_results <- data.frame()
+panel <- panel_full %>%
+  group_by(RCDS)%>%
+  mutate(ID = cur_group_id())%>%    
+  mutate_at(vars(ID, canopy_cover_pct), as.numeric)
 
+attgt <- att_gt(yname = "canopy_cover_pct",
+                tname = "year",
+                idname = "ID",
+                gname = "first_detected",
+                control_group = "notyettreated",
+                xformla = as.formula(paste("~ ", paste(cov_names, collapse = " + "))),
+                data = panel
+)
 
-for(k in tree_vars){
-  print(k)
-  
-  attgt <- att_gt(yname = k,
-                  tname = "year",
-                  idname = "ID",
-                  gname = "first_exposed",
-                  control_group = "notyettreated",
-                  xformla = as.formula(paste("~ ", paste(cov_names, collapse = " + "))),
-                  data = panel
-  )
-  
-  ovr <- aggte(attgt, type = "simple", na.rm = T)
-  
-  ovr_results <- data.frame("outcome" = k, "ATT" = ovr$overall.att, "se" = ovr$overall.se, "buffer" = i)%>%
-    rbind(ovr_results)
-  
-  es <- aggte(attgt, type = "dynamic", na.rm = T)
-  
-  es_results <- data.frame("outcome" = k, "ATT" = es$att.egt, "e" = es$egt, "se" = es$se.egt, "buffer" = i)%>%
-    rbind(es_results)
-  
-}
+ovr <- aggte(attgt, type = "simple", na.rm = T)
+
+ovr_results <- data.frame("outcome" = "canopy_cover_pct", "ATT" = ovr$overall.att, "se" = ovr$overall.se)
+
+es <- aggte(attgt, type = "dynamic", na.rm = T)
+
+es_results <- data.frame("outcome" = "canopy_cover_pct", "ATT" = es$att.egt, "e" = es$egt, "se" = es$se.egt, "simul_crit" = es$crit.val.egt)
+
 
 ovr_results <- ovr_results %>%
   mutate(crit.val = ATT/se)
 
-tree_gain_plot <- ggplot(es_results %>% filter(outcome == "acres_gain", 
-                                               between(e, -8, 7)),
+tree_gain_plot <- ggplot(es_results %>% filter(between(e, -8, 7)),
                          aes(x = e, y = ATT)) + 
   geom_line() + 
-  geom_ribbon(aes(ymin= ATT - 1.96*se, ymax=ATT + 1.96*se), alpha=0.2)+
+  geom_ribbon(aes(ymin= ATT - simul_crit*se, ymax=ATT + simul_crit*se), alpha=0.1, color = "black")+
+  geom_ribbon(aes(ymin= ATT - 1.96*se, ymax=ATT + 1.96*se), alpha=0.3, color = "red")+
   geom_vline(xintercept = -0.5, linetype = "dashed")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_minimal()
 tree_gain_plot
-
-tree_netgain_plot <- ggplot(es_results %>% filter(outcome == "acres_net_gain", 
-                                                  between(e, -8, 7)),
-                            aes(x = e, y = ATT)) + 
-  geom_line() + 
-  geom_ribbon(aes(ymin= ATT - 1.96*se, ymax=ATT + 1.96*se), alpha=0.2)+
-  geom_vline(xintercept = -0.5, linetype = "dashed")+
-  geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_minimal()
-tree_netgain_plot
-
-tree_loss_plot <- ggplot(es_results %>% filter(outcome == "acres_loss", 
-                                               between(e, -8, 7)),
-                         aes(x = e, y = ATT)) + 
-  geom_line() + 
-  geom_ribbon(aes(ymin= ATT - 1.96*se, ymax=ATT + 1.96*se), alpha=0.2)+
-  geom_vline(xintercept = -0.5, linetype = "dashed")+
-  geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_minimal()
-tree_loss_plot
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### heterogeneity in tree cover impacts analysis
@@ -279,16 +246,10 @@ tree_loss_plot
 
 library(fixest)
 
-tree_twfe <- feols(acres_net_gain ~ treated_tree | year + ID, data = panel)
+tree_twfe <- feols(canopy_cover_pct ~ treated_tree | year + ID, data = panel)
 summary(tree_twfe)
 
-lowincome_twfe <- feols(acres_net_gain ~ treated_tree * as.numeric(`low-income school pct`)| year + ID, data = panel)
-summary(lowincome_twfe)
-
-lowincome_twfe <- feols(as.numeric(ISAT_composite) ~ treated_test * as.numeric(`low-income school pct`)| year + ID, data = panel)
-summary(lowincome_twfe)
-
-lowincome_twfe <- feols(as.numeric(`all_attendance rate school pct`) ~ treated_test * as.numeric(`low-income school pct`)| year + ID, data = panel)
+lowincome_twfe <- feols(canopy_cover_pct ~ treated_tree * as.numeric(`low-income school pct`)| year + ID, data = panel)
 summary(lowincome_twfe)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -296,7 +257,7 @@ summary(lowincome_twfe)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 reportcard_outcomevars <- c("all_attendance rate school pct",    
-                            # "white_attendance rate school pct",  "black_attendance rate school pct", 
+                            "white_attendance rate school pct",  "black_attendance rate school pct", 
                             "low income_attendance rate school pct",         
                             "dropout rate  school pct", "all_tests",                  
                             "ISAT_composite" ) 
@@ -307,10 +268,8 @@ es_results2 <- data.frame()
 
 for(k in reportcard_outcomevars){
   print(k)
-  panel <- panel_full %>%
-    group_by(RCDS)%>%
-    mutate(ID = cur_group_id())%>%
-    mutate_at(vars(ID, k), as.numeric)
+  panel <- panel %>%
+    mutate_at(vars(k), as.numeric)
   
   attgt <- att_gt(yname = k,
                   tname = "year",
@@ -323,12 +282,12 @@ for(k in reportcard_outcomevars){
   
   ovr <- aggte(attgt, type = "simple", na.rm = T)
   
-  ovr_results2 <- data.frame("outcome" = k, "ATT" = ovr$overall.att, "se" = ovr$overall.se, "buffer" = i)%>%
+  ovr_results2 <- data.frame("outcome" = k, "ATT" = ovr$overall.att, "se" = ovr$overall.se)%>%
     rbind(ovr_results2)
   
   es <- aggte(attgt, type = "dynamic", na.rm = T)
   
-  es_results2 <- data.frame("outcome" = k, "ATT" = es$att.egt, "e" = es$egt, "se" = es$se.egt, "buffer" = i)%>%
+  es_results2 <- data.frame("outcome" = k, "ATT" = es$att.egt, "e" = es$egt, "se" = es$se.egt, "simul_crit" = es$crit.val.egt)%>%
     rbind(es_results2)
   
 }

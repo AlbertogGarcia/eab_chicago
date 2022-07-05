@@ -52,13 +52,10 @@ palette <- list("white" = "#FAFAFA",
 
 TO DO LIST
 
-OUTCOMES
-- get remainder of reportcard data
-
-TREE COVER
-- NLCD data
--- get baseline tree cover
+Descriptive Statistics
+- get baseline tree cover
 - ASH density
+
 
 TIMING
 - leaf out 
@@ -66,7 +63,6 @@ TIMING
 - infestation and leaf out timing
 
 WEALTH
-- implement other school data
 - Woongchan: school district data
 - descriptive statistics describing where infestations occur
 - heterogeneity in impacts by income/race
@@ -79,6 +75,22 @@ MECHANISMS
 - No single mechanism can create this change
 -- cite literature on temperature impacts
 
+
+New Paper Structure
+1. Introduction
+2. Ash borer
+3. Data
+4. Methods
+5. Results
+5.1 Main results
+5.2 Dynamic effects
+5.3 Heterogeneous treatment effects
+6. Mechanisms
+6.1 Pollution
+6.2 Temperature
+6.3 Labor
+6.4 Pesticides
+7. Conclusions
 
 
 # Abstract {-}
