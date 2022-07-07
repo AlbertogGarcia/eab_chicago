@@ -78,7 +78,7 @@ if (any(grepl("r-c-d-s", colnames(this_data)))) {
 
 
 return_data <- this_data %>%
-select(RCDS, `school name`, city, county, year,
+select(RCDS, `school name`, `district type name`, `district name`, city, county, year,
         `school - white pct`, `school - black pct`,
        `school - hispanic pct`, `school - asian pct`, `school total enrollment`, `low-income school pct`, `l.e.p. school pct`,
       `all_attendance rate school pct`, `male_attendance rate school pct`, `female_attendance rate school pct`,
@@ -116,7 +116,7 @@ school_loc <- read_sf("schools/geocoded_schools/school_locations.shp")%>%
 reportcard_loc <- reportcard_data %>%
   group_by(RCDS)%>%
   slice_head()%>%
-  select(RCDS)%>%
+  select(RCDS, `district type name`)%>%
   inner_join(school_loc, by = "RCDS")
 
 st_write(reportcard_loc, "schools/reportcard/cleaned/reportcard_loc.shp")

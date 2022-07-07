@@ -17,21 +17,33 @@ setwd("C:/Users/garci/Dropbox/eab_chicago_data")
 counties_chicagoreg7 <- c("Cook", "DuPage", "Kane", "Kendall", "Lake", "McHenry", "Will")
 
 raster_filelist <- list.files('tree_data/canopy_cover', pattern = '.tif', full.names = TRUE)
-bands <- 28
+bands <- 1:28
 
 illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Py.shp")%>%
   st_transform(crs(raster(raster_filelist[1])))
 
+chicago.shp <- read_sf("administrative/chicago_citylimits/geo_export_3a192531-441a-46d7-8c19-37beb7617696.shp")%>%
+  st_transform(st_crs(illinois.shp))
+
 roi <- read_sf("administrative/tl_2019_us_county/tl_2019_us_county.shp")%>%
-  st_transform(crs(raster(raster_filelist[1])))%>%
+  st_transform(st_crs(illinois.shp))%>%
   filter(STATEFP == 17 & NAME %in% counties_chicagoreg7)%>%
-  st_intersection(illinois.shp)
+  st_intersection(illinois.shp)%>%
+  st_difference(chicago.shp)
+
+sd.shp <- st_read("schools/SCHOOLDISTRICT_SY1314_TL15/schooldistrict_sy1314_tl15.shp", type = 6)%>%
+  filter(STATEFP == 17)%>%
+  st_transform(st_crs(roi))
 
 extent_roi <- illinois.shp %>%
   st_intersection(roi)
 
-for(b in 1:bands){
-  
+
+thing_to_loop = bands
+pb <- progress_bar$new(format = " [:bar] :percent eta: :eta",total=length(thing_to_loop),clear=FALSE,width=60)
+
+for(b in bands){
+  pb$tick()
   for(i in 1:length(raster_filelist)){
     # get file name 
     file_name <- raster_filelist[i]
@@ -52,11 +64,11 @@ for(b in 1:bands){
     }
   }
   
-  canopy_raster <- crop(canopy_raster, extent_roi)
+  canopy_raster <- crop(canopy_raster, roi)
   
   # assign(paste0("canopy_raster_", b), canopy_raster)
   
-  if(b == 1){
+  if(b == min(bands)){
     
     canopy_raster_list <- canopy_raster
     
@@ -76,64 +88,132 @@ eab_infestations <- read_sf("eeb_infestations/eeb_address_geocode.shp")%>%
   dplyr::select(Date, City, Match_addr, City_1, Address)%>%
   separate(Date, c("Year", "Month", NA))%>%
   st_transform(crs(roi))%>%
-  st_intersection(extent_roi)
+  st_intersection(extent_roi)%>%
+  rename(cNAME = NAME)
 
 
 reportcard_loc <- read_sf("schools/reportcard/cleaned/reportcard_loc.shp")%>%
   st_transform(crs(roi))%>%
   st_intersection(extent_roi)%>%
-  select(RCDS, FacilityNa)
+  select(RCDS, dstrctn)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### Extract tree loss and gain within area of school
+### Extract tree loss and gain within school district
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-buffer_size <- 2.5
+sds_within_roi <- (sd.shp %>% st_intersection(roi))$NAME
 
-school_buffer <- reportcard_loc %>%
-  st_buffer(buffer_size*1000)
+all_sd <- sd.shp %>%
+  mutate(sd_type = ifelse(is.na(UNSDLEA), ifelse(is.na(SCSDLEA), "ELEMENTARY", "HIGH SCHOOL"), "UNIT"),
+         sd_area = st_area(sd.shp))%>%
+  select(NAME, GEOID, ELSDLEA, SCSDLEA, UNSDLEA, sd_type, sd_area)%>%
+  st_cast("POLYGON")%>%
+  filter(NAME %in% sds_within_roi)
 
 library(exactextractr)
-min_year = 1990
+min_year = 1990 + min(bands) - 1
 
-for(i in 1:bands){
+for(i in 1:length(bands)){
   
-  this_canopy_cover <- canopy_raster_list[[i]]
-  
-  new <- exact_extract(this_canopy_cover, school_buffer, 'mean')
-  school_buffer[ , ncol(school_buffer) + 1] <- new      # Append new column
   
   year <- i + min_year - 1
   
-  colnames(school_buffer)[ncol(school_buffer)] <- paste0("canopy_", year)
+  this_canopy_cover <- canopy_raster_list[[i]]
   
+  new <- exact_extract(this_canopy_cover, all_sd, 'mean')
+  all_sd[ , ncol(all_sd) + 1] <- new      # Append new column
+  colnames(all_sd)[ncol(all_sd)] <- paste0("canopy_", year)
+
 }
 
 max_year = min_year + max(bands) - 1
 
-school_canopy <- school_buffer
-
-
+sd_canopy <- all_sd %>%
+  mutate(poly_area = st_area(all_sd),
+         poly_proportion = poly_area / sd_area)%>%
+  mutate_at(vars(paste0("canopy_",min_year):paste0("canopy_",max_year)), ~ poly_proportion * .)%>%
+  group_by(sd_type, NAME, GEOID)%>%
+  summarise_at(vars(paste0("canopy_",min_year):paste0("canopy_",max_year)), 
+                sum
+               )
+  
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### determine year of first EAB exposure
+### Determine district treatment year
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-school_exposure <- school_canopy %>%
+sd_exposure <- sd_canopy %>%
   st_join(eab_infestations)%>%
-  group_by(RCDS)%>%
+  group_by(NAME, GEOID)%>%
   mutate_at(vars(Year), as.numeric)%>%
   mutate(first_detected = min(Year, na.rm = T),
-         first_exposed = ifelse(min(as.numeric(Month)) > 5, first_detected + 1, first_detected))%>%
+         exposed = ifelse(as.numeric(Month) > 5, Year + 1, Year),
+         first_exposed = min(exposed, na.rm = T))%>%
   slice_head()%>%
   mutate_at(vars(first_exposed, first_detected), ~replace(., is.na(.), 0))
 
-school_exposure$geometry <- NULL
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+### sd panel
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+sd_panel <- sd_exposure %>%
+  mutate(canopy_baseline = canopy_2005,
+         median_baseline = median(canopy_baseline),
+         low_baseline = ifelse(canopy_baseline < median_baseline, 1, 0),
+         high_baseline = ifelse(canopy_baseline > median_baseline, 1, 0))%>%
+  pivot_longer(cols = paste0("canopy_",min_year):paste0("canopy_",max_year),
+               names_to = "type_year", 
+               values_to = "canopy_cover_pct")%>%
+  separate(type_year, into = c(NA, "year"), sep = "_")%>%
+  mutate_at(vars(year, first_detected, first_exposed), as.numeric)%>%
+  group_by(year, NAME, GEOID)%>%
+  slice_head()%>%
+  mutate(treated_tree = ifelse(year >= first_detected & first_detected > 0, 1, 0),
+         treated_test = ifelse(year >= first_exposed & first_exposed > 0, 1, 0))
+
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+### Match each school to its district boundaries
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+unified_sd <- all_sd %>%
+  filter(sd_type == "UNIT") %>%
+  st_intersection(roi)
+
+elem_sd <- all_sd %>%
+  filter(sd_type == "ELEMENTARY") %>%
+  st_intersection(roi)
+
+sec_sd <- all_sd %>%
+  filter(sd_type == "HIGH SCHOOL") %>%
+  st_intersection(roi)
+
+
+
+
+unified <- unifiedSD.shp %>%
+  st_join(reportcard_loc %>% filter(dstrctn == "UNIT"))
+
+elem <- elemSD.shp %>%
+  st_join(reportcard_loc %>% filter(dstrctn == "ELEMENTARY"))
+
+sec <- secSD.shp %>%
+  st_join(reportcard_loc %>% filter(dstrctn == "HIGH SCHOOL"))
+  
+schools_districts <- rbind(unified, elem, sec)
+
+
+ 
+school_exposure$geometry <- NULL
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### create panel
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 eab_panel <- school_exposure %>%
+  mutate(canopy_baseline = canopy_2005,
+         median_baseline = median(canopy_baseline),
+         low_baseline = ifelse(canopy_baseline < median_baseline, 1, 0),
+         high_baseline = ifelse(canopy_baseline > median_baseline, 1, 0))%>%
   pivot_longer(cols = paste0("canopy_",min_year):paste0("canopy_",max_year),
                names_to = "type_year", 
                values_to = "canopy_cover_pct")%>%
@@ -181,8 +261,8 @@ panel_full <- eab_panel %>%
 
 
 
-cov_names <- paste0("cov_", seq(from = 1, to = length(control_vars), by = 1))
-
+covs_school <- paste0("cov_", seq(from = 1, to = length(control_vars), by = 1))
+cov_names <- c(covs_school, "canopy_baseline", "high_baseline")
 
 # test <- c("ISAT_")
 # groups <- c("all_")#, "low income_", "non-low income_")#, "white_", "black_", "hispanic_")
@@ -230,27 +310,17 @@ es_results <- data.frame("outcome" = "canopy_cover_pct", "ATT" = es$att.egt, "e"
 ovr_results <- ovr_results %>%
   mutate(crit.val = ATT/se)
 
-tree_gain_plot <- ggplot(es_results %>% filter(between(e, -8, 7)),
-                         aes(x = e, y = ATT)) + 
+tree_plot <- ggplot(es_results %>% filter(between(e, -15, 10))
+                    ,
+                    aes(x = e, y = ATT)) + 
   geom_line() + 
-  geom_ribbon(aes(ymin= ATT - simul_crit*se, ymax=ATT + simul_crit*se), alpha=0.1, color = "black")+
-  geom_ribbon(aes(ymin= ATT - 1.96*se, ymax=ATT + 1.96*se), alpha=0.3, color = "red")+
+  geom_ribbon(aes(ymin= ATT - simul_crit*se, ymax=ATT + simul_crit*se), alpha=0.2)+
+  #geom_ribbon(aes(ymin= ATT - 1.96*se, ymax=ATT + 1.96*se), alpha=0.3, color = "red")+
   geom_vline(xintercept = -0.5, linetype = "dashed")+
   geom_hline(yintercept = 0, linetype = "dashed")+
   theme_minimal()
-tree_gain_plot
+tree_plot
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### heterogeneity in tree cover impacts analysis
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-library(fixest)
-
-tree_twfe <- feols(canopy_cover_pct ~ treated_tree | year + ID, data = panel)
-summary(tree_twfe)
-
-lowincome_twfe <- feols(canopy_cover_pct ~ treated_tree * as.numeric(`low-income school pct`)| year + ID, data = panel)
-summary(lowincome_twfe)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### DID Report card analysis
@@ -276,7 +346,7 @@ for(k in reportcard_outcomevars){
                   idname = "ID",
                   gname = "first_exposed",
                   control_group = "notyettreated",
-                  xformla = as.formula(paste("~ ", paste(cov_names, collapse = " + "))),
+                  xformla = as.formula(paste("~ ", paste(covs_school, collapse = " + "))),
                   data = panel
   )
   
@@ -316,5 +386,15 @@ ISAT_plot <- ggplot(es_results2 %>% filter(outcome == "ISAT_composite",
   theme_minimal()
 ISAT_plot
 
+
+library(fixest)
+twfe <- feols(all_tests ~ treated_test | year + ID, data = panel)
+summary(twfe)
+
+twfe <- feols(all_tests ~ treated_test * canopy_cover_pct | year + ID, data = panel)
+summary(twfe)
+
+twfe <- feols(all_tests ~ treated_test * as.numeric(`low-income school pct`) | year + ID, data = panel)
+summary(twfe)
 
 

@@ -62,7 +62,7 @@ for(i in rc_nums){
   this_data <- this_data %>%
     mutate(year = year)
   
-  composite_string = paste0("composite_", year," school")
+  composite_string = paste0("composite_", year," district")
   
   if (any(grepl("r-c-d-s", colnames(this_data)))) {
     this_data <- this_data %>%
