@@ -146,7 +146,7 @@ for(k in outcomevars){
   print(k)
   panel <- panel %>%
     mutate_at(vars(k, year), as.numeric)%>%
-    filter(between(year, 2000, 2015))
+    filter(between(year, 2000, 2014))
   
   attgt <- att_gt(yname = k,
                   tname = "year",
@@ -213,6 +213,33 @@ all_attend_plot <- ggplot(es_results_ed %>% filter(outcome == "all_attend",
   theme_minimal()
 all_attend_plot
 
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+### Instrumental variables
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+outcomevars <- c("all_attend", "all_tests", "ISAT_composite", "low_income_attend")
+iv_results <- data.frame()
+
+for(k in outcomevars){
+  
+  
+  x <- as.formula(paste(k,  '~ 1 | RCDS + year | net_gain ~ treated'))
+  
+  print(x)
+  
+  iv_est <- feols(x, panel)
+  coeff <- iv_est$coefficients
+  se <- iv_est$se
+  fstat <- fitstat(iv_est, "ivf")[[1]]$stat
+  
+  
+  iv_results <- data.frame("outcome" = k,
+                           "coeff" = coeff,
+                           "se" = se,
+                           "Fstat" = fstat)%>%
+    rbind(iv_results)
+}
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### By subject, grade, etc.
@@ -260,17 +287,17 @@ for(k in tests){
 }
 
 
-spec_results_math <- ovr_results_isat %>%
-  filter(subject == "math")%>%
+spec_results_warning <- ovr_results_isat %>%
+ # filter(subject == "math")%>%
  # pivot_wider(names_from = benchmark, values_from = benchmark, values_fn = list(benchmark = ~TRUE), values_fill = list(benchmark = 0))%>%
   pivot_wider(names_from = group, values_from = group, values_fn = list(group = ~TRUE), values_fill = list(group = 0))%>%
  # pivot_wider(names_from = subject, values_from = subject, values_fn = list(subject = ~TRUE), values_fill = list(subject = 0))%>%
   pivot_wider(names_from = grade, values_from = grade, values_fn = list(grade = ~TRUE), values_fill = list(grade = 0))
 
 
-labels <- list("Benchmark" = c("Meets", "Academic warning"),
-               "Group" = c("all", "low-income", "non low-income"),
-               "Subject" = c("Math", "Reading", "Composite"),
+labels <- list(#"Benchmark" = c("Meets", "Academic warning"),
+               "Group" = c("All", "Low-income", "Non low-income"),
+               "Subject" = c("Math", "Reading"),
                "Grade" = c("8th", "7th","6th", "5th", "4th", "3rd")
 )
 
@@ -290,11 +317,6 @@ schart(spec_results, ci=c(.9,.95), ylab="ATT",
        bg.dot=c("white","grey","white", my_palette$red),
        col.est=c(my_palette$black, my_palette$red)
 ) 
-
-
-
-
-
 
 
 ovr_results_isat_cs <- data.frame()
