@@ -29,7 +29,8 @@ for(i in rc_nums){
 this_folder <- paste0("schools/reportcard/rc", i, sep = "")
 this_data <- fread(list.files(path = this_folder, recursive = TRUE,
                             pattern = "\\.txt$", 
-                            full.names = TRUE), colClasses = c("character"), data.table = FALSE)
+                            full.names = TRUE),
+                   colClasses = c("character"), data.table = FALSE, fill=TRUE)
 
 colnames <- read_excel(list.files(path = this_folder, recursive = TRUE,
                                   pattern = "\\.xls", 
@@ -66,7 +67,8 @@ composite_string = paste0("composite_", year," school")
 
 if (any(grepl("r-c-d-s", colnames(this_data)))) {
   this_data <- this_data %>%
-    rename(RCDS = 1)
+    rename(RCDS = 1)%>%
+    mutate(RCDTS = NA)
     
 } else {
   
@@ -75,25 +77,23 @@ if (any(grepl("r-c-d-s", colnames(this_data)))) {
     mutate(RCDS = paste0(substrLeft(RCDTS, 9), substrRight(RCDTS, 4)))
 }
 
-
+names(this_data) <- gsub(x = names(this_data), pattern = "meetss", replacement = "meets")  
 
 return_data <- this_data %>%
-select(RCDS, `school name`, `district type name`, `district name`, city, county, year,
+select(RCDS, RCDTS, `school name`, `district type name`, `district name`, city, county, year,
         `school - white pct`, `school - black pct`,
        `school - hispanic pct`, `school - asian pct`, `school total enrollment`, `low-income school pct`, `l.e.p. school pct`,
       `all_attendance rate school pct`, `male_attendance rate school pct`, `female_attendance rate school pct`,
        `white_attendance rate school pct`, `black_attendance rate school pct`, `hispanic_attendance rate school pct`, `asian_attendance rate school pct`,
       `low income_attendance rate school pct`, `chronic truants rate school pct`, `dropout rate  school pct`,
       `act comp school`, contains(composite_string), 
-      contains("math school below"), contains("read school below"), 
-      contains("math school academic"), contains("read school academic"), 
+      contains("math school"), contains("read school"), 
       -c(contains("IMAGE"), contains("IAA"), contains("GRADE"))  
       )%>%
   rename_at(vars(contains(paste0("ISAT_", year))), ~"ISAT_composite")%>%
   rename_at(vars(contains(paste0("PSAE_", year))), ~"PSAE_composite")%>%
   rename_at(vars(contains("ALL TESTS")), ~"all_tests")%>%
   bind_rows(return_data)
-
 
 }
 
@@ -106,17 +106,13 @@ export(reportcard_data, "schools/reportcard/cleaned/reportcard_data.rds")
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 library(sf)
-  
-school_loc <- read_sf("schools/geocoded_schools/school_locations.shp")%>%
+
+publicschool_loc <- read_sf("schools/geocoded_schools/school_locations.shp")%>%
   select(CountyName:NCES_ID)%>%
+  filter(RecType == "Sch")%>%
   rename(RCD = 3) %>%
   mutate(County = tolower(CountyName),
-         RCDS = paste0(RCD, School))
+         RCDS = paste0(RCD, School))%>%
+  select(CountyName, City_1, RCDS, FacilityNa, RCD, School)
 
-reportcard_loc <- reportcard_data %>%
-  group_by(RCDS)%>%
-  slice_head()%>%
-  select(RCDS, `district type name`)%>%
-  inner_join(school_loc, by = "RCDS")
-
-st_write(reportcard_loc, "schools/reportcard/cleaned/reportcard_loc.shp")
+st_write(publicschool_loc, "schools/reportcard/cleaned/publicschool_loc.shp")

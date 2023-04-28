@@ -1,6 +1,7 @@
 library(sf)
 library(raster)
 library(terra)
+library(ncdf4)
 library(readxl)
 library(tidyverse)
 library(exactextractr)
@@ -8,9 +9,13 @@ library(ggplot2)
 library(kableExtra)
 library(modelsummary)
 
-setwd("C:/Users/garci/Dropbox/eab_chicago_data")
+select <- dplyr::select
 
-results_dir <- "output"
+file_dir <- "C:/Users/garci/Dropbox/eab_chicago_data"
+
+out_dir <- here::here("cleaned")
+
+fig_dir <- here::here("figs")
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #### Read in data
@@ -19,20 +24,20 @@ results_dir <- "output"
 #### Administrative data
 
 # illinois shapefile
-illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Py.shp")%>%
-  st_transform(raster::crs(raster("tree_data/tree_loss_year.tif")))
+illinois.shp <- read_sf(paste0(file_dir, "/administrative/IL_State/IL_BNDY_State_Py.shp"))%>%
+  st_transform(raster::crs(raster(paste0(file_dir, "/tree_data/tree_loss_year.tif"))))
 
 my_crs <- st_crs(illinois.shp)
 
 #Chicago shapefile
-chicago.shp <- read_sf("administrative/chicago_citylimits/geo_export_3a192531-441a-46d7-8c19-37beb7617696.shp")%>%
+chicago.shp <- read_sf(paste0(file_dir, "/administrative/chicago_citylimits/geo_export_3a192531-441a-46d7-8c19-37beb7617696.shp"))%>%
   st_transform(my_crs)%>%
   mutate(NAME = "Chicago",
          STATEFP = 17)%>%
   select(NAME, STATEFP)
 
 # Chicago area counties separating out chicago limits
-counties.shp <- read_sf("administrative/tl_2019_us_county/tl_2019_us_county.shp")%>%
+counties.shp <- read_sf(paste0(file_dir, "/administrative/tl_2019_us_county/tl_2019_us_county.shp"))%>%
   st_transform(my_crs)%>%
   st_difference(chicago.shp)%>%
   select(NAME, STATEFP)%>%
@@ -46,13 +51,13 @@ counties.shp <- read_sf("administrative/tl_2019_us_county/tl_2019_us_county.shp"
 counties_chicago7 <- c("Cook", "DuPage", "Kane", "Kendall", "Lake", "McHenry", "Will")
 roi_counties <- counties_chicago7
 
-chicago.shp <- read_sf("administrative/chicago_citylimits/geo_export_3a192531-441a-46d7-8c19-37beb7617696.shp")%>%
+chicago.shp <- read_sf(paste0(file_dir, "/administrative/chicago_citylimits/geo_export_3a192531-441a-46d7-8c19-37beb7617696.shp"))%>%
   st_transform(st_crs(illinois.shp))%>%
   mutate(NAME = "Chicago",
          STATEFP = 17)%>%
   select(NAME, STATEFP)
 
-counties.shp <- read_sf("administrative/tl_2019_us_county/tl_2019_us_county.shp")%>%
+counties.shp <- read_sf(paste0(file_dir, "/administrative/tl_2019_us_county/tl_2019_us_county.shp"))%>%
   st_transform(my_crs)%>%
   st_difference(chicago.shp)%>%
   select(NAME, STATEFP)%>%
@@ -67,372 +72,328 @@ extent_roi <- illinois.shp %>%
   st_intersection(roi)%>%
   st_union()
 
-### Raster data on tree loss/gain and canopy cover
-# SILVIS data
-
-tree_gain <- raster::raster("tree_data/tree_gain_year.tif")%>%
-  raster::crop(illinois.shp)
-tree_loss <- raster::raster("tree_data/tree_loss_year.tif")%>%
-  raster::crop(illinois.shp)
-impervious_increase <- raster::raster("tree_data/IS_change_year.tif")%>%
-  raster::crop(illinois.shp)
-
-#Emapr data
-raster_filelist <- list.files('tree_data/canopy_cover', pattern = '.tif', full.names = TRUE)
-min_bands <- 2000 - 1990 + 1
-bands <- min_bands:28
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #### Read in Ash borer and other data
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # ash density by county in chicago region
-ash_by_county <- read.csv("tree_data/ash_by_county.csv")
+ash_by_county <- read.csv(paste0(file_dir, "/tree_data/ash_by_county.csv"))
 
 # Geocoded confirmed EAB infestations
-eab_infestations <- read_sf("eeb_infestations/eeb_address_geocode.shp")%>%
+eab_infestations <- read_sf(paste0(file_dir,"/eeb_infestations/eeb_address_geocode.shp"))%>%
   dplyr::select(Date, City, Match_addr, City_1, Address)%>%
   separate(Date, c("Year", NA, NA))%>%
+  mutate(Year = as.numeric(Year))%>%
   st_transform(my_crs)
 
+# place locations
+places.shp <- st_read(paste0(file_dir,"/administrative/tl_2017_17_place/tl_2017_17_place.shp"), quiet = TRUE)%>%
+  st_transform(my_crs)%>%
+  st_intersection(extent_roi)%>%
+  st_sf()%>%
+  st_join(eab_infestations)%>%
+  group_by(NAME, PLACEFP)%>%
+  mutate(place_first_detected = min(Year, na.rm = T))%>%
+  dplyr::select(-c(Year))%>%
+  ungroup 
+
 # ACS data
-ACS <- read.csv("ACS/ACS_censustract_5yr_0509.csv")%>%
+ACS <- read.csv(paste0(file_dir,"/ACS/ACS_censustract_5yr_0509.csv"))%>%
   mutate(GEOID10 = as.character(FIPS))
 
-ACS.shp <- read_sf("administrative/tl_2010_17_tract/tl_2010_17_tract10.shp")%>%
-  st_transform(st_crs(eab_infestations))%>%
+ACS.shp <- read_sf(paste0(file_dir,"/administrative/tl_2010_17_tract/tl_2010_17_tract10.shp"))%>%
+  st_transform(my_crs)%>%
   select(GEOID10, NAME10, NAMELSAD10)%>%
   left_join(ACS, by = "GEOID10")
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-##### read and clean canopy cover data
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+######## Maps showing study region and infestation occurrence
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-for(b in bands){
+library(tmap)
+
+roi_map <- tm_shape(illinois.shp) +
+  tm_polygons(col = "lightgoldenrodyellow")+
+  tm_shape(extent_roi) +
+  tm_polygons(col = "grey85")
+
+
+map_infestations <- eab_infestations %>%
+  st_intersection(extent_roi)
+
+Breaks = seq(from = min(eab_infestations$Year), to = 2014)
+Labels = as.character(Breaks)
+
+metro_eab <- tm_shape(extent_roi) +
+  tm_polygons(col = "grey90") +
+  tm_shape(map_infestations)+
+  tm_symbols(col = "Year",
+             breaks = Breaks, labels = Labels,
+             palette = "plasma",
+             legend.hist = T,
+             size = 0.35)+
+  tm_layout(legend.outside = TRUE) +
+  tm_compass(type = "4star", size = 1, position = c("right", "top"))+
+  tm_scale_bar(breaks = c(0, 5, 10, 15, 20))
+metro_eab
+
+tmap_save(metro_eab, paste0(fig_dir, "/metro_infestations_map.png"), height = 5, width = 7)
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+### Raster data on tree loss/gain and canopy cover
+# SILVIS data
+
+tree_gain <- raster::raster(paste0(file_dir, "/tree_data/tree_gain_year.tif"))%>%
+  raster::crop(illinois.shp)
+tree_loss <- raster::raster(paste0(file_dir, "/tree_data/tree_loss_year.tif"))%>%
+  raster::crop(illinois.shp)
+impervious_increase <- raster::raster(paste0(file_dir, "/tree_data/IS_change_year.tif"))%>%
+  raster::crop(illinois.shp)
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#### Read in Emapr data
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+#Emapr data
+canopy_filelist <- list.files(paste0(file_dir, '/tree_data/emapr/canopy_cover'), pattern = '.tif', full.names = TRUE)
+nlcd_filelist <- list.files(paste0(file_dir,'/tree_data/emapr/nlcd'), pattern = '.tif', full.names = TRUE)
+biomass_filelist <- list.files(paste0(file_dir, '/tree_data/emapr/biomass'), pattern = '.tif', full.names = TRUE)
+min_bands <- 2000 - 1990 + 1
+max_bands <- 2015 - 1990 + 1
+bands <- min_bands:max_bands
+
+read_emapr <- function(bands, file_list){
   
-  for(i in 1:length(raster_filelist)){
-    # get file name 
-    file_name <- raster_filelist[i]
+  for(b in bands){
     
-    # read in raster
-    rast_i <- terra::rast(file_name, lyrs = b)
-    
-    if(i == 1){
+    for(i in 1:length(file_list)){
+      # get file name 
+      file_name <- file_list[i]
       
-      canopy_raster <- rast_i
+      # read in raster
+      rast_i <- terra::rast(file_name, lyrs = b)
+      
+      if(i == 1){
+        
+        this_raster <- rast_i
+        
+      } else {
+        
+        # merge rasters
+        this_raster <- terra::merge(this_raster, rast_i)
+        
+      }
+    }
+    
+    this_raster <- terra::project(this_raster, terra::rast(paste0(file_dir, "/tree_data/tree_loss_year.tif")))
+    
+    if(b == min(bands)){
+      
+      raster_list <- this_raster
       
     } else {
       
-      # merge rasters
-      canopy_raster <- terra::merge(canopy_raster, rast_i)
+      # concatonate rasters
+      raster_list <- c(raster_list, this_raster)
       
     }
-  }
-  
-  canopy_raster <- terra::project(canopy_raster, terra::rast("tree_data/tree_loss_year.tif"))
-  
-  if(b == min(bands)){
-    
-    canopy_raster_list <- canopy_raster
-    
-  } else {
-    
-    # concatonate rasters
-    canopy_raster_list <- c(canopy_raster_list, canopy_raster)
     
   }
   
+  return(raster_list)
 }
+
+#nlcd_raster_list <- read_emapr(bands, nlcd_filelist)
+canopy_raster_list <- read_emapr(bands, canopy_filelist)
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#### now read in and clean pollution data
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# getting nc files for each year of pollution pm25 data
+# pollution_raster_filelist <- list.files(paste0(file_dir, '/pollution/Annual/Annual'), pattern = '.nc', full.names = TRUE)
+# 
+# for(i in 1:length(pollution_raster_filelist)){
+#   
+#   # get file name 
+#   file_name <- pollution_raster_filelist[i]
+#   
+#   # read in raster
+#   rast_i <- terra::rast(file_name)%>%
+#     terra::project(terra::rast(paste0(file_dir, "/tree_data/tree_loss_year.tif")))
+#   
+#   pollution_raster <- terra::crop(
+#     rast_i,
+#     extent(roi)
+#   )
+#   
+#   if(i == 1){
+#     
+#     pollution_raster_list <- pollution_raster
+#     
+#   } else {
+#     
+#     # merge rasters
+#     pollution_raster_list <- c(pollution_raster_list, pollution_raster)
+#     
+#     
+#   }
+#   
+# }
+# 
+
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ##### Create grid
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-grid_spacing = 2500
-#grid_spacing = 5000
+grid_sizes_km <- c(
+  seq(from = 1, to = 5, by = 1)
+  , 7, 10)
 
-silvis_bound <- st_bbox(tree_loss)
-
-
-grid <- st_make_grid(extent_roi, square = T, cellsize = c(grid_spacing, grid_spacing), crs = st_crs(eab_infestations)) %>% # the grid, covering bounding box
-  st_sf() %>%#not really required, but makes the grid nicer to work with later
-  mutate(grid = row_number())
-
-grid_centroids <- st_centroid(grid)%>%
-  st_join(counties.shp)%>%
-  left_join(ash_by_county, by = c("NAME" = "County"))%>%
-  st_join(ACS.shp)
-grid_centroids$geometry <- NULL
-
-gridded_infestations <- grid %>%
-  st_join(eab_infestations)%>%
-  group_by(grid)%>%
-  mutate(first_detected = min(Year, na.rm = T))%>%
-  dplyr::select(-c(Year))
-#st_write(gridded_infestations, "gridded_infestations.shp")
-
-ggplot(eab_infestations %>% st_crop(gridded_infestations), aes(color = Year))+
-  geom_sf(size = 1.5)
-ggplot(gridded_infestations , aes(fill = first_detected))+
-  geom_sf(size = 1.5)
-
-
-
-eeb_loss_data <- gridded_infestations %>%
-  mutate_at(vars(first_detected), ~replace(., is.na(.), 0))%>%
-  left_join(grid_centroids, by = "grid")%>%
-  ungroup
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-##### extract canopy cover data
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-library(exactextractr)
-min_year = 1995
-max_year = 2015
-year_list <- seq(from = min_year, to = max_year, by = 1)
-
-for(i in year_list){
+for(g in grid_sizes_km){
   
-  this_tree_gain <- tree_gain
-  this_tree_gain[this_tree_gain[] != i ] = 0
-  this_tree_gain[this_tree_gain[] == i ] = 1
+  grid_spacing = g*1000
   
-  new <- exact_extract(this_tree_gain, eeb_loss_data, 'sum')
-  eeb_loss_data[ , ncol(eeb_loss_data) + 1] <- new      # Append new column
-  colnames(eeb_loss_data)[ncol(eeb_loss_data)] <- paste0("gain_", i)
   
-  this_tree_loss <- tree_loss
-  this_tree_loss[this_tree_loss[] != i ] = 0
-  this_tree_loss[this_tree_loss[] == i ] = 1
+  grid <- st_make_grid(extent_roi, square = T, cellsize = c(grid_spacing, grid_spacing), crs = my_crs) %>% # the grid, covering bounding box
+    st_sf() %>% #not really required, but makes the grid nicer to work with later
+    st_intersection(extent_roi)%>%
+    mutate(grid = row_number())
   
-  new <- exact_extract(this_tree_loss, eeb_loss_data, 'sum')
-  eeb_loss_data[ , ncol(eeb_loss_data) + 1] <- new      # Append new column
-  colnames(eeb_loss_data)[ncol(eeb_loss_data)] <- paste0("loss_", i)
+  grid_place <- grid %>%
+    st_intersection(places.shp %>% select(NAME, place_first_detected))%>%
+    mutate(intersect_area = st_area(.),
+           place_first_detected = ifelse(is.na(place_first_detected), 0, place_first_detected))%>%
+    group_by(grid)%>%
+    filter(intersect_area == max(intersect_area))%>%
+    slice_head()%>%
+    ungroup %>%
+    mutate_at(vars(place_first_detected), ~replace(., is.na(.), 0))%>%
+    mutate_at(vars(place_first_detected), ~replace(., is.infinite(.), 0))%>%
+    select(grid, place_first_detected)
+  grid_place$geometry <- NULL
   
-  this_impervious_increase <- impervious_increase
-  this_impervious_increase[this_impervious_increase[] != i ] = 0
-  this_impervious_increase[this_impervious_increase[] == i ] = 1
+  grid_centroids <- st_centroid(grid)%>%
+    st_join(counties.shp)%>%
+    left_join(ash_by_county, by = c("NAME" = "County"))%>%
+    st_join(ACS.shp)%>%
+    left_join(grid_place, by = "grid") %>%
+    mutate_at(vars(place_first_detected), ~replace(., is.na(.), 0))
+  grid_centroids$geometry <- NULL
   
-  new <- exact_extract(this_impervious_increase, eeb_loss_data, 'sum')
-  eeb_loss_data[ , ncol(eeb_loss_data) + 1] <- new      # Append new column
-  colnames(eeb_loss_data)[ncol(eeb_loss_data)] <- paste0("impervious_", i)
+  gridded_infestations <- grid %>%
+    st_join(eab_infestations)%>%
+    group_by(grid)%>%
+    mutate(first_detected = min(Year, na.rm = T))%>%
+    slice_head()%>%
+    dplyr::select(grid, first_detected) %>%
+    ungroup %>%
+    mutate_at(vars(first_detected), ~replace(., is.na(.), 0))%>%
+    mutate_at(vars(first_detected), ~replace(., is.infinite(.), 0))
+  
+  eab_loss_data <- gridded_infestations %>%
+    left_join(grid_centroids, by = "grid")%>%
+    mutate(place_first_detected = ifelse(place_first_detected == 0 , first_detected, place_first_detected))%>%
+    select(grid, first_detected, place_first_detected, everything())
+  
+  Breaks = seq(from = 2006, to = 2014)
+  Labels = c("No infestation", as.character(Breaks))
+  
+  tm_shape(gridded_infestations) +
+    tm_polygons("first_detected",
+                breaks = c(0, Breaks), labels = Labels,
+                palette = "plasma")
+  
+  #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  ##### extract canopy cover data
+  #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  
+  library(exactextractr)
+  min_year = 2000
+  max_year = 2015
+  year_list <- seq(from = min_year, to = max_year, by = 1)
+  
+  for(i in year_list){
+    
+    this_tree_gain <- tree_gain
+    this_tree_gain[this_tree_gain[] != i ] = 0
+    this_tree_gain[this_tree_gain[] == i ] = 1
+    
+    new <- exact_extract(this_tree_gain, eab_loss_data, 'sum')
+    eab_loss_data[ , ncol(eab_loss_data) + 1] <- new      # Append new column
+    colnames(eab_loss_data)[ncol(eab_loss_data)] <- paste0("gain_", i)
+    
+    this_tree_loss <- tree_loss
+    this_tree_loss[this_tree_loss[] != i ] = 0
+    this_tree_loss[this_tree_loss[] == i ] = 1
+    
+    new <- exact_extract(this_tree_loss, eab_loss_data, 'sum')
+    eab_loss_data[ , ncol(eab_loss_data) + 1] <- new      # Append new column
+    colnames(eab_loss_data)[ncol(eab_loss_data)] <- paste0("loss_", i)
+    
+  }
+  
+  eab_data <- eab_loss_data
+  
+  
+  min_canopy_year = 1990 + min(bands) - 1
+  for(i in 1:length(bands)){
+    
+    # get year 
+    year <- i + min_canopy_year - 1
+    print(year)
+    # extract from canopy cover raster
+    this_canopy_cover <- canopy_raster_list[[i]]
+    
+    new <- terra::extract(this_canopy_cover, eab_data, 'mean') %>% select(-ID)
+    eab_data[ , ncol(eab_data) + 1] <- new      # Append new column
+    
+    colnames(eab_data)[ncol(eab_data)] <- paste0("canopy_", year)
+    
+  }
+  
+  max_canopy_year = min_canopy_year + length(bands) - 1
+  
+  # min_pm25_year = 2000
+  # for(p in 1:length(pollution_raster_list)){
+  #   
+  #   # get year 
+  #   year <- p + min_pm25_year - 1
+  #   print(year)
+  #   # extract from canopy cover raster
+  #   this_pm25 <- pollution_raster_list[[p]]
+  #   
+  #   new <- terra::extract(this_pm25, eab_data, 'mean') %>% select(-ID)
+  #   eab_data[ , ncol(eab_data) + 1] <- new      # Append new column
+  #   
+  #   colnames(eab_data)[ncol(eab_data)] <- paste0("pm25_", year)
+  #   
+  # }
+  # 
+  # max_pm25_year = min_canopy_year + length(pollution_raster_list) - 1
+  
+  
+  extracted_data <- eab_data
+  
+  extracted_data$geometry = NULL
+  
+  eab_panel <- extracted_data %>%
+    mutate(canopy_baseline = canopy_2002)%>%
+    pivot_longer(cols = paste0("gain_",min_year):paste0("canopy_",max_canopy_year),
+                 names_to = "type_year", 
+                 values_to = "total_change")%>%
+    separate(type_year, into = c("change_type", "year"), sep = "_")%>%
+    mutate_at(vars(year, first_detected, grid), as.numeric)%>%
+    pivot_wider(names_from = "change_type", values_from = "total_change")%>%
+    group_by(year, grid)%>%
+    slice_head()%>%
+    mutate(#net_gain = gain - loss,
+      treated = ifelse(year >= first_detected & year > 0, 1, 0))
+  
+  library(rio)
+  export(eab_panel, paste0(out_dir, "/eab_panel_grid", g, "km.rds"))
+  
+  
   
 }
 
-eab_data <- eeb_loss_data
-
-min_canopy_year = 1990 + min(bands) - 1
-
-for(i in 1:length(bands)){
-  
-  this_canopy_cover <- canopy_raster_list[[i]]
-  
-  new <- terra::extract(this_canopy_cover, eab_data, 'mean') %>% select(-ID)
-  eab_data[ , ncol(eab_data) + 1] <- new      # Append new column
-  
-  year <- i + min_canopy_year - 1
-  
-  colnames(eab_data)[ncol(eab_data)] <- paste0("canopy_", year)
-  
-}
-
-max_canopy_year = min_canopy_year + length(bands) - 1
-
-extracted_data <- eab_data
-
-extracted_data$geometry = NULL
-
-eab_panel <- extracted_data %>%
-  mutate(canopy_baseline = canopy_2002)%>%
-  pivot_longer(cols = paste0("gain_",min_year):paste0("canopy_",max_canopy_year),
-               names_to = "type_year", 
-               values_to = "total_change")%>%
-  separate(type_year, into = c("change_type", "year"), sep = "_")%>%
-  mutate_at(vars(year, first_detected, grid), as.numeric)%>%
-  pivot_wider(names_from = "change_type", values_from = "total_change")%>%
-  group_by(year, grid)%>%
-  slice_head()%>%
-  mutate(net_gain = gain - loss,
-         treated = ifelse(year > first_detected & year > 0, 1, 0))
-
-library(rio)
-export(eab_panel, "output/eab_panel_grid25km.rds")
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### DID estimates
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-library(did)
-set.seed(0930)
-
-eab_panel <- readRDS("output/eab_panel_grid3km.rds")
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### tree loss
-
-loss_attgt <- att_gt(yname = "loss",
-                     tname = "year",
-                     idname = "grid",
-                     gname = "first_detected",
-                     control_group = "notyettreated",
-                     data = eab_panel
-)
-loss_ovr <- aggte(loss_attgt, type = "simple")
-summary(loss_ovr)
-loss_es <- aggte(loss_attgt, type = "dynamic")
-
-ovr_results <- data.frame("outcome" = "loss", "ATT" = loss_ovr$overall.att, "se" = loss_ovr$overall.se)
-es_results <- data.frame("outcome" = "loss", "ATT" = loss_es$att.egt, "e" = loss_es$egt, "se" = loss_es$se.egt)
-
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### Tree cover gain
-
-gain_attgt <- att_gt(yname = "gain",
-                     tname = "year",
-                     idname = "grid",
-                     gname = "first_detected",
-                     control_group = "notyettreated",
-                     data = eab_panel
-)
-gain_ovr <- aggte(gain_attgt, type = "simple")
-summary(gain_ovr)
-gain_es <- aggte(gain_attgt, type = "dynamic")
-
-ovr_results <- data.frame("outcome" = "gain", "ATT" = gain_ovr$overall.att, "se" = gain_ovr$overall.se)%>%
-  rbind(ovr_results)
-es_results <- data.frame("outcome" = "gain", "ATT" = gain_es$att.egt, "e" = gain_es$egt, "se" = gain_es$se.egt)%>%
-  rbind(es_results)
-
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### Canopy cover
-
-canopy_attgt <- att_gt(yname = "canopy",
-                     tname = "year",
-                     idname = "grid",
-                     gname = "first_detected",
-                     control_group = "notyettreated",
-                     xformla = ~ pct_trees_in_area + med_household_income + poverty_pct ,
-                     ,
-                     data = eab_panel
-)
-canopy_ovr <- aggte(canopy_attgt, type = "simple")
-summary(canopy_ovr)
-canopy_es <- aggte(canopy_attgt, type = "dynamic")
-
-ovr_results <- data.frame("outcome" = "canopy", "ATT" = canopy_ovr$overall.att, "se" = canopy_ovr$overall.se)%>%
-  rbind(ovr_results)
-es_results <- data.frame("outcome" = "canopy", "ATT" = canopy_es$att.egt, "e" = canopy_es$egt, "se" = canopy_es$se.egt)%>%
-  rbind(es_results)
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### Event study plots
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-loss_plot <- ggplot(es_results %>% filter(outcome == "loss" & between(e, -7, 8)), aes(x = e, y = ATT)) + 
-  geom_line() + 
-  geom_ribbon(aes(ymin=ATT - 1.96*se,ymax=ATT + 1.96*se),alpha=0.2)+
-  geom_vline(xintercept = -0.25, linetype = "dashed")+
-  geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_minimal()
-loss_plot
-
-gain_plot <- ggplot(es_results %>% filter(outcome == "gain" & between(e, -7, 8)), aes(x = e, y = ATT)) + 
-  geom_line() + 
-  geom_ribbon(aes(ymin=ATT - 1.96*se,ymax=ATT + 1.96*se),alpha=0.2)+
-  geom_vline(xintercept = -0.25, linetype = "dashed")+
-  geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_minimal()
-gain_plot
-
-
-canopy_plot <- ggplot(es_results %>% filter(outcome == "canopy" & between(e, -7, 8)), aes(x = e, y = ATT)) + 
-  geom_line() + 
-  geom_ribbon(aes(ymin=ATT - 1.96*se,ymax=ATT + 1.96*se),alpha=0.2)+
-  #geom_ribbon(aes(ymin=ATT - canopy_es$crit.val.egt*se,ymax=ATT + canopy_es$crit.val.egt*se),alpha=0.2)+
-  geom_vline(xintercept = -0.25, linetype = "dashed")+
-  geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_minimal()
-canopy_plot
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### TWFE results
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-library(fixest)
-
-# Main results
-
-twfe_canopy <- feols(canopy ~ treated | year + grid, data = eab_panel)
-summary(twfe_canopy)
-
-twfe_loss <- feols(loss ~ treated | year + grid, data = eab_panel)
-summary(twfe_loss)
-
-twfe_gain <- feols(gain ~ treated | year + grid, data = eab_panel)
-summary(twfe_gain)
-
-models = list("Loss" = twfe_loss,
-              "Gain" = twfe_gain,
-              "Canopy cover" = twfe_canopy
-)
-
-treat_canopy_2005 <- round(mean(subset(eab_panel, year == 2005 & first_detected > 0)$canopy, na.rm = T)  , digits = 3)
-treat_loss <- round(mean(subset(eab_panel, year < first_detected & first_detected > 0)$loss, na.rm = T)  , digits = 3)
-treat_gain <- round(mean(subset(eab_panel, year < first_detected & first_detected > 0)$gain, na.rm = T)  , digits = 3)
-
-
-rows <- tribble(~term, ~`Canopy cover`, ~Loss, ~Gain, 
-                'pre-treatment mean', as.character(treat_canopy_2005), as.character(treat_loss), as.character(treat_gain)
-)%>%
-  as.data.frame()
-
-f1 <- function(x) format(round(x, 4), big.mark=",")
-options("modelsummary_format_numeric_latex" = "plain")
-modelsummary(models,
-             output="latex",
-             title = 'TWFE estimates of canopy cover impacts of ash borer infestation',
-             fmt = f1, # 4 digits and trailing zero
-             vcov = ~grid,
-             stars = c('*' = .1, '**' = .05, '***' = .01),
-             coef_rename = c("treated" = "Infestation"),
-             gof_omit = 'DF|Deviance|Adj|Within|Pseudo|AIC|BIC|Log|Year|FE|Std|RMSE'
-             , add_rows = rows
-             , notes = "Standard errors are clustered at the grid level."
-)%>%
-  kable_styling(latex_options = c("hold_position"))%>% 
-  kableExtra::save_kable(paste0(results_dir, "twfe_main_3km.tex"))
-
-
-# Heterogeneity in canopy cover impacts
-
-twfe_canopy_ash <- feols(canopy ~ treated * log(trees_per_acre) | year + grid, data = eab_panel)
-summary(twfe_canopy_ash)
-
-twfe_canopy_baseline <- feols(canopy ~ treated * log(canopy_baseline) | year + grid, data = eab_panel)
-summary(twfe_canopy_baseline)
-
-twfe_canopy_income <- feols(canopy ~ treated + treated:log(med_household_income) | year + grid, data = eab_panel)
-summary(twfe_canopy_income)
-
-twfe_canopy_it <- feols(canopy ~ treated + treated:log(med_household_income) + treated:log(trees_per_acre) +  treated:log(canopy_baseline) | year + grid, data = eab_panel)
-summary(twfe_canopy_it)
-
-models = list("(1)" = twfe_canopy_ash,
-              "(2)" = twfe_canopy_baseline,
-              "(3)" = twfe_canopy_income,
-              "(4)"  = twfe_canopy_it
-)
-
-modelsummary(models,
-             output="latex",
-             title = 'Heterogeneous canopy cover impacts of ash borer infestation',
-             fmt = f1, # 4 digits and trailing zero
-             vcov = ~grid,
-             stars = c('*' = .1, '**' = .05, '***' = .01),
-             coef_rename = c("treated" = "Infestation"),
-             gof_omit = 'DF|Deviance|Adj|Within|Pseudo|AIC|BIC|Log|Year|FE|Std|RMSE'
-         #    , add_rows = rows
-             , notes = "Standard errors are clustered at the grid level."
-)%>%
-  kable_styling(latex_options = c("hold_position"))%>% 
-  kableExtra::save_kable(paste0(results_dir, "twfe_het_3km.tex"))

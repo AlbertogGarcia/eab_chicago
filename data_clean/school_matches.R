@@ -21,7 +21,7 @@ substrRight <- function(x, n){
 }
 
 ed_loc.sf <- read_sf("schools/geocoded_schools/school_locations.shp")%>%
-  st_transform(crs(tree_loss))%>%
+  st_transform(raster::crs(tree_loss))%>%
   dplyr::select(CountyName:NCES_ID)%>%
   rename(RCD = 3) %>%
   mutate(Dist_number = substrRight(RCD, 4),
@@ -53,8 +53,9 @@ files <- list.files(path = "schools/test_scores", recursive = TRUE,
 school_read_excel <- function(x){
   read_excel(x)%>%
     rename(Dist_number = `Dist #`)%>%
-    group_by(Dist_number, County)%>%
-    slice(2:n())
+    group_by(Dist_number, County)
+  #%>%
+   # slice(2:n())
   
 }
 

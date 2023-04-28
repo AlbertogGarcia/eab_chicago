@@ -1,43 +1,74 @@
-library(raster)
-library(terra)
-library(readxl)
 library(tidyverse)
-library(exactextractr)
 library(ggplot2)
 library(kableExtra)
 library(modelsummary)
 library(here)
-
-results_dir <- here("paper/results/")
-file_dir <- "C:/Users/garci/Dropbox/eab_chicago_data/"
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### DID estimates
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+library(fixest)
 library(did)
+library(ggpubr)
+
+palette <- list("white" = "#FAFAFA",
+                "light_grey" = "#d9d9d9",
+                "dark" = "#0c2230",
+                "red" = "#ed195a",
+                "blue" = "#1c86ee",
+                "green" = "#7CAE7A",
+                "dark_green" = "#496F5D",
+                "gold" = "#DAA520")
+
+file_dir <- "C:/Users/garci/Dropbox/eab_chicago_data"
+
+results_dir <- here::here("results")
+
+out_dir <- here::here("cleaned")
+
+fig_dir <- here::here("figs")
+
+grid_res <- 5
+eab_panel <- readRDS(paste0(out_dir, "/eab_panel_grid", grid_res, "km.rds"))%>%
+  mutate_at(vars(place_first_detected), as.numeric)%>%
+  mutate(gain = gain * 0.2223948433, # converting 900m^2 pixels into acres
+         loss = loss * 0.2223948433)
+
 set.seed(0930)
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#### Callaway did
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-eab_panel <- readRDS(paste0(file_dir, "output/eab_panel_grid5km.rds"))
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### tree loss
+ovr_results <- data.frame()
 
 loss_attgt <- att_gt(yname = "loss",
                      tname = "year",
                      idname = "grid",
                      gname = "first_detected",
                      control_group = "notyettreated",
-                     xformla = ~ pct_trees_in_area + med_household_income + poverty_pct ,
                      data = eab_panel
 )
+
 loss_ovr <- aggte(loss_attgt, type = "simple")
-summary(loss_ovr)
-loss_es <- aggte(loss_attgt, type = "dynamic")
+loss_ovr
 
-ovr_results <- data.frame("outcome" = "loss", "ATT" = loss_ovr$overall.att, "se" = loss_ovr$overall.se)
-es_results <- data.frame("outcome" = "loss", "ATT" = loss_es$att.egt, "e" = loss_es$egt, "se" = loss_es$se.egt)
+ovr_results <- data.frame("outcome" = "loss", "ATT" = loss_ovr$overall.att, "se" = loss_ovr$overall.se, 
+                          "pre-treat" = mean((eab_panel %>% filter( first_detected > 0 & year < first_detected))$loss, na.rm = T), "Ngrids" = length(unique(eab_panel$grid))
+)%>%
+  rbind(ovr_results)
 
+loss_es <- aggte(loss_attgt, type = "dynamic", min_e = -7, max_e = 6)
 
+es_plot_df <- data.frame("outcome" = "loss", "ATT" = loss_es$att.egt, "e" = loss_es$egt, "se" = loss_es$se.egt, "crit" = loss_es$crit.val.egt)
+
+loss_plot <- ggplot(es_plot_df, aes(x = e, y = ATT)) + 
+  ylab("Tree loss (Acres/year)")+ xlab("Years since infestation detection")+
+  geom_ribbon(aes(ymin= ATT - 1.96*se, ymax=ATT + 1.96*se), fill = palette$light_grey, color = palette$light_grey, alpha=1)+
+  geom_line() +
+  geom_point(shape = 21, fill = palette$dark)+
+  geom_vline(xintercept = -0.5, linetype = "dashed")+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  theme_classic()
+loss_plot
+
+loss_plot + ggtitle("Tree cover loss impacts of ash borer infestation by event time")
+ggsave(paste0(fig_dir, "/eventstudy_loss.png"), width = 8, height = 5)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Tree cover gain
 
@@ -46,19 +77,32 @@ gain_attgt <- att_gt(yname = "gain",
                      idname = "grid",
                      gname = "first_detected",
                      control_group = "notyettreated",
-                     xformla = ~ pct_trees_in_area + med_household_income + poverty_pct ,
                      data = eab_panel
 )
 gain_ovr <- aggte(gain_attgt, type = "simple")
-summary(gain_ovr)
-gain_es <- aggte(gain_attgt, type = "dynamic")
+gain_ovr
 
-ovr_results <- data.frame("outcome" = "gain", "ATT" = gain_ovr$overall.att, "se" = gain_ovr$overall.se)%>%
+ovr_results <- data.frame("outcome" = "gain", "ATT" = gain_ovr$overall.att, "se" = gain_ovr$overall.se, 
+                          "pre-treat" = mean((eab_panel %>% filter( first_detected > 0 & year < first_detected))$gain, na.rm = T), "Ngrids" = length(unique(eab_panel$grid))
+)%>%
   rbind(ovr_results)
-es_results <- data.frame("outcome" = "gain", "ATT" = gain_es$att.egt, "e" = gain_es$egt, "se" = gain_es$se.egt)%>%
-  rbind(es_results)
 
+gain_es <- aggte(gain_attgt, type = "dynamic", min_e = -7, max_e = 6)
 
+es_plot_df <- data.frame("outcome" = "gain", "ATT" = gain_es$att.egt, "e" = gain_es$egt, "se" = gain_es$se.egt, "crit" = loss_es$crit.val.egt)
+
+gain_plot <- ggplot(es_plot_df, aes(x = e, y = ATT)) + 
+  ylab("Tree gain (Acres/year)")+ xlab("Years since infestation detection")+
+  geom_ribbon(aes(ymin= ATT - 1.96*se, ymax=ATT + 1.96*se), fill = palette$light_grey, color = palette$light_grey, alpha=1)+
+  geom_line() +
+  geom_point(shape = 21, fill = palette$dark)+
+  geom_vline(xintercept = -0.5, linetype = "dashed")+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  theme_classic()
+gain_plot
+
+gain_plot + ggtitle("Tree cover gain impacts of ash borer infestation by event time")
+ggsave(paste0(fig_dir, "/eventstudy_gain.png"), width = 8, height = 5)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Canopy cover
 
@@ -67,136 +111,129 @@ canopy_attgt <- att_gt(yname = "canopy",
                        idname = "grid",
                        gname = "first_detected",
                        control_group = "notyettreated",
-                       xformla = ~ pct_trees_in_area + med_household_income + poverty_pct ,
-                       ,
                        data = eab_panel
 )
 canopy_ovr <- aggte(canopy_attgt, type = "simple")
-summary(canopy_ovr)
-canopy_es <- aggte(canopy_attgt, type = "dynamic")
+canopy_ovr
 
-ovr_results <- data.frame("outcome" = "canopy", "ATT" = canopy_ovr$overall.att, "se" = canopy_ovr$overall.se)%>%
+ovr_results <- data.frame("outcome" = "canopy", "ATT" = canopy_ovr$overall.att, "se" = canopy_ovr$overall.se, 
+                          "pre-treat" = mean((eab_panel %>% filter( first_detected > 0 & year < first_detected))$canopy, na.rm = T), "Ngrids" = length(unique(eab_panel$grid))
+)%>%
   rbind(ovr_results)
-es_results <- data.frame("outcome" = "canopy", "ATT" = canopy_es$att.egt, "e" = canopy_es$egt, "se" = canopy_es$se.egt)%>%
-  rbind(es_results)
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### Event study plots
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+canopy_es <- aggte(canopy_attgt, type = "dynamic", min_e = -7, max_e = 6)
 
-loss_plot <- ggplot(es_results %>% filter(outcome == "loss" & between(e, -7, 8)), aes(x = e, y = ATT)) + 
-  geom_line() + 
-  geom_ribbon(aes(ymin=ATT - 1.96*se,ymax=ATT + 1.96*se),alpha=0.2)+
-  geom_vline(xintercept = -0.25, linetype = "dashed")+
+es_plot_df <- data.frame("outcome" = "canopy", "ATT" = canopy_es$att.egt, "e" = canopy_es$egt, "se" = canopy_es$se.egt, "crit" = loss_es$crit.val.egt)
+
+canopy_plot <- ggplot(es_plot_df, aes(x = e, y = ATT)) + 
+  ylab("Mean canopy cover probability")+ xlab("Years since infestation detection")+
+  geom_ribbon(aes(ymin= ATT - 1.96*se, ymax=ATT + 1.96*se), fill = palette$light_grey, color = palette$light_grey, alpha=1)+
+  geom_line() +
+  geom_point(shape = 21, fill = palette$dark)+
+  geom_vline(xintercept = -0.5, linetype = "dashed")+
   geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_minimal()
-loss_plot
-ggsave(loss_plot, path = results_dir, filename = paste0("loss_es_grid5km.png"), width = 7, height = 5)
-
-
-gain_plot <- ggplot(es_results %>% filter(outcome == "gain" & between(e, -7, 8)), aes(x = e, y = ATT)) + 
-  geom_line() + 
-  geom_ribbon(aes(ymin=ATT - 1.96*se,ymax=ATT + 1.96*se),alpha=0.2)+
-  geom_vline(xintercept = -0.25, linetype = "dashed")+
-  geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_minimal()
-gain_plot
-ggsave(gain_plot, path = results_dir, filename = paste0("gain_es_grid5km.png"), width = 7, height = 5)
-
-
-canopy_plot <- ggplot(es_results %>% filter(outcome == "canopy" & between(e, -7, 8)), aes(x = e, y = ATT)) + 
-  geom_line() + 
-  geom_ribbon(aes(ymin=ATT - 1.96*se,ymax=ATT + 1.96*se),alpha=0.2)+
-  #geom_ribbon(aes(ymin=ATT - canopy_es$crit.val.egt*se,ymax=ATT + canopy_es$crit.val.egt*se),alpha=0.2)+
-  geom_vline(xintercept = -0.25, linetype = "dashed")+
-  geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_minimal()
+  theme_classic()
 canopy_plot
-ggsave(canopy_plot, path = results_dir, filename = paste0("canopy_es_grid5km.png"), width = 7, height = 5)
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### TWFE results
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+canopy_plot + ggtitle("Canopy cover impacts of ash borer infestation by event time")
+ggsave(paste0(fig_dir, "/eventstudy_canopy.png"), width = 8, height = 5)
 
 
+ggarrange(canopy_plot, loss_plot, gain_plot, ncol = 1, nrow = 3,
+          labels = c("A", "B", "C"))
+ggsave(paste0(fig_dir, "/eventstudy_grid_trio.png"), width = 5, height = 10)
 
-library(fixest)
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#### Grid level tree cover impacts table
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-for(i in c(3, 5)){
-
-  grid_area <- as.character(i^2)
-  
-  eab_panel <- readRDS(paste0(file_dir, "output/eab_panel_grid", i, "km.rds"))
-# Main results
-
-twfe_canopy <- feols(canopy ~ treated | year + grid, data = eab_panel)
-summary(twfe_canopy)
-
-twfe_loss <- feols(loss ~ treated | year + grid, data = eab_panel)
-summary(twfe_loss)
-
-twfe_gain <- feols(gain ~ treated | year + grid, data = eab_panel)
-summary(twfe_gain)
-
-models = list("Canopy cover" = twfe_canopy,
-              "Loss" = twfe_loss,
-              "Gain" = twfe_gain
-)
-
-treat_canopy_2005 <- round(mean(subset(eab_panel, year == 2005 & first_detected > 0)$canopy, na.rm = T)  , digits = 3)
-treat_loss <- round(mean(subset(eab_panel, year < first_detected & first_detected > 0)$loss, na.rm = T)  , digits = 3)
-treat_gain <- round(mean(subset(eab_panel, year < first_detected & first_detected > 0)$gain, na.rm = T)  , digits = 3)
-
-
-rows <- tribble(~term, ~`Canopy cover`, ~Loss, ~Gain, 
-                'pre-treatment mean', as.character(treat_canopy_2005), as.character(treat_loss), as.character(treat_gain)
-                , 'grid area (square km)', grid_area, grid_area, grid_area
-)%>%
+paper_results <- ovr_results %>%
+  mutate(
+    stars = ifelse(between(abs(ATT/se), 1.645, 1.96), "*",
+                   ifelse(between(abs(ATT/se), 1.96, 2.58), "**",
+                          ifelse(abs(ATT/se) >= 2.58, "***", "")
+                   )
+    )
+  )%>%
+  mutate_at(vars(ATT, se, pre.treat), ~ round(., digits = 3))%>%
+  mutate(se = paste0("(", se, ")"),
+         ATT = paste0(ATT, stars))%>%
+  select(-stars)%>%
+  t() %>%
+  row_to_names(row_number = 1) %>%
   as.data.frame()
+row.names(paper_results) <- c("ATT", " ", "Pre-treat mean", "N grid cells")
 
-f1 <- function(x) format(round(x, 4), big.mark=",")
-options("modelsummary_format_numeric_latex" = "plain")
-modelsummary(models,
-             output="latex",
-             title = 'TWFE estimates of canopy cover impacts of ash borer infestation',
-             fmt = f1, # 4 digits and trailing zero
-             vcov = ~grid,
-             stars = c('*' = .1, '**' = .05, '***' = .01),
-             coef_rename = c("treated" = "Infestation"),
-             gof_omit = 'DF|Deviance|Adj|Within|Pseudo|AIC|BIC|Log|Year|FE|Std|RMSE'
-             , add_rows = rows
-             , notes = "Standard errors are clustered at the grid level."
+kbl(paper_results %>% dplyr::select(canopy, loss, gain),
+    format = "latex",
+    booktabs = T,
+    caption = "This table shows difference-in-differences estimates of the impact of ash borer infestation on tree cover outcomes across the Chicago metropolitan region. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated grid cells in the control group.",
+    col.names = c("Canopy", "Loss (Acres/year)", "Gain (Acres/year)"),
+    align = c("l", "c", "c", "c")
 )%>%
+  kableExtra::row_spec(2, hline_after = TRUE)%>%
+  add_header_above(c(" " = 1, "Outcome" = 3))%>%
+  footnote(general = "* p<0.1, ** p<0.05, *** p<0.01; standard errors clustered at grid level")%>%
   kable_styling(latex_options = c("hold_position"))%>% 
-  kableExtra::save_kable(paste0(results_dir, "/twfe_main_", i, "km.tex"))
+  kableExtra::save_kable(paste0(results_dir, "/grid_results_tree_5km.tex"))
 
 
-# Heterogeneity in canopy cover impacts
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+### Canopy cover place treatment assignment
 
-twfe_canopy_ash <- feols(canopy ~ treated * log(trees_per_acre) | year + grid, data = eab_panel)
-summary(twfe_canopy_ash)
+place_canopy_attgt <- att_gt(yname = "canopy",
+                       tname = "year",
+                       idname = "grid",
+                       gname = "place_first_detected",
+                       control_group = "notyettreated",
+                       data = eab_panel
+)
+canopy_ovr <- aggte(place_canopy_attgt, type = "simple")
+canopy_ovr
 
-twfe_canopy_baseline <- feols(canopy ~ treated * log(canopy_baseline) | year + grid, data = eab_panel)
-summary(twfe_canopy_baseline)
+canopy_es <- aggte(place_canopy_attgt, type = "dynamic", min_e = -7, max_e = 6)
+
+es_plot_df <- data.frame("outcome" = "canopy", "ATT" = canopy_es$att.egt, "e" = canopy_es$egt, "se" = canopy_es$se.egt, "crit" = loss_es$crit.val.egt)
+
+place_canopy_plot <- ggplot(es_plot_df, aes(x = e, y = ATT)) + 
+  ylab("ATT")+ xlab("Years since infestation detection")+
+  ggtitle("Canopy cover impacts of ash borer infestation by event time")+
+  geom_ribbon(aes(ymin= ATT - 1.96*se, ymax=ATT + 1.96*se), fill = palette$light_grey, color = palette$light_grey, alpha=1)+
+  geom_line() +
+  geom_point(shape = 21, fill = palette$dark)+
+  geom_vline(xintercept = -0.5, linetype = "dashed")+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  theme_classic()
+place_canopy_plot
+
+ggsave(plot = place_canopy_plot, paste0(fig_dir, "/eventstudy_canopy_place.png"), width = 8, height = 5)
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+##### Heterogeneity
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+twfe_canopy_trees <- feols(canopy ~ treated + treated:log(trees_per_acre) +  treated:log(canopy_baseline) | year + grid, data = eab_panel)
+summary(twfe_canopy_trees, vcov = ~grid)
 
 twfe_canopy_income <- feols(canopy ~ treated + treated:log(med_household_income) | year + grid, data = eab_panel)
-summary(twfe_canopy_income)
+summary(twfe_canopy_income, vcov = ~grid)
 
 twfe_canopy_it <- feols(canopy ~ treated + treated:log(med_household_income) + treated:log(trees_per_acre) +  treated:log(canopy_baseline) | year + grid, data = eab_panel)
-summary(twfe_canopy_it)
+summary(twfe_canopy_it, vcov = ~grid)
 
-models = list("(1)" = twfe_canopy_ash,
-              "(2)" = twfe_canopy_baseline,
-              "(3)" = twfe_canopy_income,
-              "(4)"  = twfe_canopy_it
+models = list("(1)" = twfe_canopy_trees,
+              "(2)" = twfe_canopy_income,
+              "(3)"  = twfe_canopy_it
 )
 
 names_coef <- c("treated" = "Infestation",
-                "treated:log(trees_per_acre)" = "Infestation x Ash per acre",
-                "treated:log(med_household_income)" = "Infestation x Med income",
-                "treated:log(canopy_baseline)" = "Infestation x Canopy baseline"
-                )
+                "treated:log(trees_per_acre)" = "Infestation x ln(Ash per acre)",
+                "treated:log(med_household_income)" = "Infestation x ln(Med. income)",
+                "treated:log(canopy_baseline)" = "Infestation x ln(Canopy baseline)"
+)
 
+f1 <- function(x) format(round(x, 4), big.mark=",")
+options("modelsummary_format_numeric_latex" = "plain")
 modelsummary(models,
              output="latex",
              title = 'Heterogeneous canopy cover impacts of ash borer infestation',
@@ -209,7 +246,47 @@ modelsummary(models,
              , notes = "Standard errors are clustered at the grid level."
 )%>%
   kable_styling(latex_options = c("hold_position"))%>% 
-  kableExtra::save_kable(paste0(results_dir, "/twfe_het_", i, "km.tex"))
+  kableExtra::save_kable(paste0(results_dir, "/twfe_het_", grid_res, "km.tex"))
 
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+##### Varying grid size
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+grid_files <- c(seq(from = 1, to = 5), 7, 10)
+canopy_results <- data.frame()
 
+for(i in grid_files){
+  
+  eab_panel <- readRDS(paste0(out_dir, "/eab_panel_grid", i, "km.rds"))%>%
+    mutate_at(vars(place_first_detected), as.numeric)%>%
+    mutate(gain = gain * 0.2223948433, # converting 900m^2 pixels into acres
+           loss = loss * 0.2223948433)
+  
+  #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  ### Canopy cover
+  
+  canopy_attgt <- att_gt(yname = "canopy",
+                         tname = "year",
+                         idname = "grid",
+                         gname = "first_detected",
+                         control_group = "notyettreated",
+                         data = eab_panel
+  )
+  canopy_ovr <- aggte(canopy_attgt, type = "simple")
+  
+  canopy_results <- data.frame("grid_size" = ifelse(i != 25, i, 2.5), "ATT" = canopy_ovr$overall.att, "se" = canopy_ovr$overall.se) %>% rbind(canopy_results)
+  
 }
+
+ggplot(canopy_results, aes(x = grid_size, y = ATT))+
+  geom_errorbar(aes(ymin = ATT - 1.96*se, ymax = ATT + 1.96*se), width = 0.5)+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  geom_point(size = 4, shape = 21, fill = palette$green, color = palette$dark)+
+  theme_minimal()+
+  ylim(-0.5, 0.2) +
+  xlab("Grid cell size (km)") + ggtitle("Canopy cover impacts of infestations across grid cell sizes")+
+  scale_x_continuous(breaks = grid_files)
+ggsave(paste0(fig_dir, "/grid_sizes_schart.png"), width = 8, height = 5)
+
+
+
+
