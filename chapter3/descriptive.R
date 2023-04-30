@@ -46,7 +46,7 @@ eab_school_cross <- eab_panel_school %>%
 
 p1 <- ggplot(eab_school_cross, aes(x = ISAT_composite, y = canopy))+
   xlab("% students meeting or exceeding ISAT threshold (2005)") + 
-  geom_point(color = palette$dark, alpha = 0.75)+
+  geom_point(color = palette$dark, shape = 21)+
   geom_smooth(method='lm', formula= y~x, color = palette$blue,
               size = 1.5
   )+
@@ -55,7 +55,7 @@ p1 <- ggplot(eab_school_cross, aes(x = ISAT_composite, y = canopy))+
 
 p2 <- ggplot(eab_school_cross, aes(x = lowinc_pct, y = canopy))+
   xlab("% low-income students (2005)") + 
-  geom_point(color = palette$dark, alpha = 0.75)+
+  geom_point(color = palette$dark, shape = 21)+
   geom_smooth(method='lm', formula= y~x, color = palette$blue,
               size = 1.5
               )+
