@@ -129,7 +129,8 @@ kbl(paper_results %>% dplyr::select(canopy, loss, gain),
     booktabs = T,
     caption = "This table shows difference-in-differences estimates of the impact of ash borer infestation on tree cover outcomes within 3.22km (2 miles) of the school. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated schools in the control group.",
     col.names = c("Canopy", "Loss (Acres/year)", "Gain (Acres/year)"),
-    align = c("l", "c", "c", "c")
+    align = c("l", "c", "c", "c"),
+    label = "school-tree-table"
     )%>%
   kableExtra::row_spec(2, hline_after = TRUE)%>%
   add_header_above(c(" " = 1, "Outcome" = 3))%>%
@@ -142,7 +143,8 @@ kbl(paper_results %>% dplyr::select(ISAT_composite, all_tests, all_attend, low_i
     format = "latex",
     caption = "This table shows difference-in-differences estimates of the impact of ash borer infestation on school-level education outcomes. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated schools in the control group.",
     col.names = c("ISAT composite", "All tests", "Attendance rate", "Low-income attend.", "Enrollment"),
-    align = c("l", "c", "c", "c", "c", "c")
+    align = c("l", "c", "c", "c", "c", "c"),
+    label = "school-educ-table"
 )%>%
   kableExtra::row_spec(2, hline_after = TRUE)%>%
   add_header_above(c(" " = 1, "Outcome" = 5))%>%
@@ -194,10 +196,14 @@ canopy_plot
 canopy_plot + ggtitle("School vicinity canopy cover impacts of ash borer infestation by event time")
 ggsave(path = fig_dir, filename = "es_school_canopy_2mi.png", width = 7, height = 5)
 
+ggarrange(canopy_plot, isat_plot, ncol = 2, nrow = 1,
+          labels = c("A", "B"))
+ggsave(path = fig_dir, filename = "es_school_duo_2mi.png", width = 9, height = 3.5)
+
 
 ggarrange(isat_plot, all_tests_plot, canopy_plot, ncol = 1, nrow = 3,
           labels = c("A", "B", "C"))
-ggsave(path = fig_dir, filename = "es_school_trio_2mi.png", width = 5, height = 10)
+ggsave(path = fig_dir, filename = "es_school_trio_2mi.png", width = 4, height = 10)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### TWFE results for heterogeneity

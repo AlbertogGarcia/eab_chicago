@@ -186,7 +186,7 @@ publicschool_loc <- read_sf(paste0(file_dir,"/schools/cleaned/publicschool_loc.s
 
 ### Create buffer around schools from which to determine infestation exposure
 
-buffer_size = 1609.34 * 2
+treatment_buffer = 1609.34 * 2
 
 school_infestation <- publicschool_loc %>%
   st_join(counties.shp %>% select(NAME))%>%
@@ -244,7 +244,7 @@ covs_school <- paste0("cov_", seq(from = 1, to = length(control_vars), by = 1))
 ##### extract canopy cover data
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-publicschool_buffer <- st_buffer(publicschool_loc, buffer_size)%>%
+publicschool_buffer <- st_buffer(publicschool_loc, treatment_buffer)%>%
   st_crop(extent_roi)
 
 library(exactextractr)

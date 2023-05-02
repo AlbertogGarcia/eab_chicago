@@ -5,6 +5,7 @@ library(modelsummary)
 library(here)
 library(fixest)
 library(did)
+library(janitor)
 library(ggpubr)
 
 palette <- list("white" = "#FAFAFA",
@@ -169,14 +170,14 @@ kbl(paper_results %>% dplyr::select(canopy, loss, gain),
     booktabs = T,
     caption = "This table shows difference-in-differences estimates of the impact of ash borer infestation on tree cover outcomes across the Chicago metropolitan region. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated grid cells in the control group.",
     col.names = c("Canopy", "Loss (Acres/year)", "Gain (Acres/year)"),
-    align = c("l", "c", "c", "c")
+    align = c("l", "c", "c", "c"),
+    label = "grid-tree-table"
 )%>%
   kableExtra::row_spec(2, hline_after = TRUE)%>%
   add_header_above(c(" " = 1, "Outcome" = 3))%>%
   footnote(general = "* p<0.1, ** p<0.05, *** p<0.01; standard errors clustered at grid level")%>%
   kable_styling(latex_options = c("hold_position"))%>% 
   kableExtra::save_kable(paste0(results_dir, "/grid_results_tree_5km.tex"))
-
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Canopy cover place treatment assignment
@@ -235,6 +236,7 @@ names_coef <- c("treated" = "Infestation",
 f1 <- function(x) format(round(x, 4), big.mark=",")
 options("modelsummary_format_numeric_latex" = "plain")
 modelsummary(models,
+             label = "twfe-grid-het",
              output="latex",
              title = 'Heterogeneous canopy cover impacts of ash borer infestation',
              fmt = f1, # 4 digits and trailing zero
