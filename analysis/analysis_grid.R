@@ -17,16 +17,14 @@ palette <- list("white" = "#FAFAFA",
                 "dark_green" = "#496F5D",
                 "gold" = "#DAA520")
 
-file_dir <- "C:/Users/garci/Dropbox/eab_chicago_data"
-
 results_dir <- here::here("results")
 
-out_dir <- here::here("cleaned")
+clean_data_dir <- here::here("cleaned")
 
 fig_dir <- here::here("figs")
 
 grid_res <- 5
-eab_panel <- readRDS(paste0(out_dir, "/eab_panel_grid", grid_res, "km.rds"))%>%
+eab_panel <- readRDS(paste0(clean_data_dir, "/eab_panel_grid", grid_res, "km.rds"))%>%
   mutate_at(vars(place_first_detected), as.numeric)%>%
   mutate(gain = gain * 0.2223948433, # converting 900m^2 pixels into acres
          loss = loss * 0.2223948433)
@@ -177,7 +175,7 @@ kbl(paper_results %>% dplyr::select(canopy, loss, gain),
   add_header_above(c(" " = 1, "Outcome" = 3))%>%
   footnote(general = "* p<0.1, ** p<0.05, *** p<0.01; standard errors clustered at grid level")%>%
   kable_styling(latex_options = c("hold_position"))%>% 
-  kableExtra::save_kable(paste0(results_dir, "/grid_results_tree_5km.tex"))
+  kableExtra::save_kable(paste0(results_dir, "/grid_results_tree_main.tex"))
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Canopy cover place treatment assignment
@@ -248,12 +246,14 @@ modelsummary(models,
              , notes = "Standard errors are clustered at the grid level."
 )%>%
   kable_styling(latex_options = c("hold_position"))%>% 
-  kableExtra::save_kable(paste0(results_dir, "/twfe_het_", grid_res, "km.tex"))
+  kableExtra::save_kable(paste0(results_dir, "/twfe_het_grid_main.tex"))
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ##### Varying grid size
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-grid_files <- c(seq(from = 1, to = 5), 7, 10)
+grid_files <- c(
+  seq(from = 1, to = 10)
+                )
 canopy_results <- data.frame()
 
 for(i in grid_files){

@@ -5,11 +5,14 @@ library(tidyverse)
 library(stringr)
 library(stringdist)
 library(data.table)
-setwd("C:/Users/garci/Dropbox/eab_chicago_data")
 
-illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Ln.shp")%>%
-  st_transform(crs(raster("tree_data/tree_loss_year.tif")))
-tree_loss <- raster("tree_data/tree_loss_year.tif")%>%
+# NOTE: you need to have specified init.R to set your local path to data directory
+
+clean_data_dir <- here::here("cleaned")
+
+illinois.shp <- read_sf(paste0(data_dir, "administrative/IL_State/IL_BNDY_State_Ln.shp"))%>%
+  st_transform(crs(raster(paste0(data_dir, "tree_data/tree_loss_year.tif"))))
+tree_loss <- raster(paste0(data_dir, "tree_data/tree_loss_year.tif"))%>%
   crop(illinois.shp)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -20,7 +23,11 @@ substrRight <- function(x, n){
   substr(x, nchar(x)-n+1, nchar(x))
 }
 
-ed_loc.sf <- read_sf("schools/geocoded_schools/school_locations.shp")%>%
+substrLeft <- function(x, n){
+  substr(x, 1, n)
+}
+
+ed_loc.sf <- read_sf(paste0(data_dir, "schools/geocoded_schools/school_locations.shp"))%>%
   st_transform(raster::crs(tree_loss))%>%
   dplyr::select(CountyName:NCES_ID)%>%
   rename(RCD = 3) %>%
@@ -33,7 +40,7 @@ county_list <- unique(ed_loc.sf$County)
 school_loc <- ed_loc.sf %>%
   group_by(Dist_number)%>%
   filter(RecType != "Dist")%>%
-  separate(GradeServe, into = c("grade_low", "grade_high"))%>%
+  separate(GradeServe, into = c("grade_low", "grade_high"), sep = "-")%>%
   ungroup()%>%
   mutate(grade_low = ifelse(grade_low %in% c("K", "P"), 1, grade_low),
          grade_high = ifelse(grade_high %in% c("K", "P"), 1, grade_high),
@@ -45,7 +52,7 @@ school_loc <- ed_loc.sf %>%
 ##### read in test scores
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-files <- list.files(path = "schools/test_scores", recursive = TRUE,
+files <- list.files(path = paste0(data_dir, "schools/test_scores"), recursive = TRUE,
                     pattern = ".xls",
                     full.names = TRUE
 )
@@ -66,8 +73,8 @@ school_temp = sapply(files, school_read_excel, simplify = FALSE)
 school_scores <- rbindlist(school_temp,
                            use.names = TRUE, idcol = "filename", 
                            fill = TRUE)%>%
-  separate(filename, into = c(NA, NA, NA, NA, "Year"))%>%
-  mutate(year = as.numeric(paste0("20", Year, sep = "")),
+  mutate(Year = substrLeft(substrRight(filename, 6), 2),
+         year = as.numeric(paste0("20", Year, sep = "")),
          County = tolower(County),
          name.score = word(tolower(`District Name/ School Name`), 1, 2),
          name.score1 = word(tolower(`District Name/ School Name`), 1),
@@ -87,12 +94,13 @@ filtered_matches <- match_distcounty %>%
          name_str1 = stringdist(name.loc1, name.score1),
          name_str2 = stringdist(name.loc2, name.score2))%>%
   group_by(name.loc)%>%
-  filter(name_str1 == min(name_str1) & name_str2 == min(name_str2) & name_str1 <= 1 )%>%
+  filter(name_str1 <= 1 & name_str2 <= 1)%>%
   ungroup() %>%
   group_by(name.score)%>%
-  filter(name_str == min(name_str) & name_str1 <= 1 )%>%
+  filter(name_str1 == min(name_str1) & name_str2 == min(name_str2) & name_str == min(name_str))%>%
   select(name.loc, name.score, NCES_ID, Dist_number, Read_3:year, grade_low, grade_high)%>%
-  mutate(my_id = cur_group_id())
+  mutate(my_id = cur_group_id())%>%
+  ungroup
 
 library(rio)
-export(filtered_matches, "schools/school_test_scores.rds")
+export(filtered_matches, paste0(clean_data_dir, "/school_test_scores.rds"))

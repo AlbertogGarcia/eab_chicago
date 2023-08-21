@@ -2,11 +2,12 @@ library(sf)
 library(raster)
 library(readxl)
 library(tidyverse)
-setwd("C:/Users/agarcia/Dropbox/eab_chicago_data")
 
-illinois.shp <- read_sf("administrative/IL_State/IL_BNDY_State_Ln.shp")%>%
-  st_transform(crs(raster("tree_data/tree_loss_year.tif")))
-tree_loss <- raster("tree_data/tree_loss_year.tif")%>%
+# NOTE: you need to have specified init.R to set your local path to data directory
+
+illinois.shp <- read_sf(paste0(data_dir, "administrative/IL_State/IL_BNDY_State_Ln.shp"))%>%
+  st_transform(crs(raster(paste0(data_dir, "tree_data/tree_loss_year.tif"))))
+tree_loss <- raster(paste0(data_dir, "tree_data/tree_loss_year.tif"))%>%
   crop(illinois.shp)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -17,14 +18,18 @@ substrRight <- function(x, n){
   substr(x, nchar(x)-n+1, nchar(x))
 }
 
-ed_loc.sf <- read_sf("schools/geocoded_schools/school_locations.shp")%>%
+substrLeft <- function(x, n){
+  substr(x, 1, n)
+}
+
+ed_loc.sf <- read_sf(paste0(data_dir, "schools/geocoded_schools/school_locations.shp"))%>%
   st_transform(crs(tree_loss))%>%
   select(CountyName:NCES_ID)%>%
   rename(RCD = 3) %>%
   mutate(Dist_number = substrRight(RCD, 4),
          County = tolower(CountyName))
 
-school_districts.shp <- read_sf("schools/SCHOOLDISTRICT_SY1314_TL15/schooldistrict_sy1314_tl15.shp")%>%
+school_districts.shp <- read_sf(paste0(data_dir, "schools/SCHOOLDISTRICT_SY1314_TL15/schooldistrict_sy1314_tl15.shp"))%>%
   st_transform(crs(tree_loss))%>%
   filter(STATEFP == 17)%>%
   st_crop(extent(tree_loss))%>%
@@ -34,7 +39,7 @@ school_districts.shp <- read_sf("schools/SCHOOLDISTRICT_SY1314_TL15/schooldistri
 ##### read in test scores
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-files <- list.files(path = "schools/test_scores", recursive = TRUE,
+files <- list.files(path = paste0(data_dir, "schools/test_scores"), recursive = TRUE,
                     pattern = ".xls",
                     full.names = TRUE
 )
@@ -63,18 +68,19 @@ library(data.table)
 district_scores <- rbindlist(sdtemp,
                          use.names = TRUE, idcol = "filename", 
                          fill = TRUE)%>%
-  separate(filename, into = c(NA, NA, NA, NA, "Year"))%>%
-  mutate(year = as.numeric(paste0("20", Year, sep = "")),
+  mutate(Year = substrLeft(substrRight(filename, 6), 2),
+         year = as.numeric(paste0("20", Year, sep = "")),
          County = tolower(County))%>%
   select(-Year)
 
-library(rio)
+table(district_scores$year)
 
+library(rio)
 school_scores <- rbindlist(school_temp,
                              use.names = TRUE, idcol = "filename", 
                              fill = TRUE)%>%
-  separate(filename, into = c(NA, NA, NA, NA, "Year"))%>%
-  mutate(year = as.numeric(paste0("20", Year, sep = "")),
+  mutate(Year = substrLeft(substrRight(filename, 6), 2),
+         year = as.numeric(paste0("20", Year, sep = "")),
          County = tolower(County))%>%
   select(-Year)
 

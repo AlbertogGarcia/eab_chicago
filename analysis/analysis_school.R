@@ -9,7 +9,7 @@ library(kableExtra)
 library(ggpubr)
 
 select <- dplyr::select
-source(here::here('chapter3', 'schart.R'))
+source(here::here('analysis', 'schart.R'))
 
 palette <- list("white" = "#FAFAFA",
                 "light_grey" = "#d9d9d9",
@@ -20,17 +20,15 @@ palette <- list("white" = "#FAFAFA",
                 "dark_green" = "#496F5D",
                 "gold" = "#DAA520")
 
-file_dir <- "C:/Users/garci/Dropbox/eab_chicago_data"
+results_dir <- here::here('analysis', "results")
 
-cleaned_dir <- here::here("cleaned")
-
-results_dir <- here::here("results")
+clean_data_dir <- here::here("cleaned")
 
 fig_dir <- here::here("figs")
 
 set.seed(0930)
 
-eab_panel_school <- readRDS(paste0(cleaned_dir, "/eab_panel_school2mi.rds"))%>%
+eab_panel_school <- readRDS(paste0(clean_data_dir, "/eab_panel_school2mi.rds"))%>%
   mutate(gain = gain * 0.2223948433, # converting 900m^2 pixels into acres
          loss = loss * 0.2223948433)
 

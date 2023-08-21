@@ -2,7 +2,7 @@ library(data.table)
 library(tidyverse)
 library(readxl)
 
-setwd("C:/Users/garci/Dropbox/eab_chicago_data")
+clean_data_dir <- here::here("cleaned")
 
 var_clean <- function(x){
   
@@ -26,7 +26,7 @@ rc_nums <- c("03", "04", "05", "06", "07", "08", "09", "10", "11","12", "13", "1
 return_list = list()
 return_data = data.frame()
 for(i in rc_nums){
-this_folder <- paste0("schools/reportcard/rc", i, sep = "")
+this_folder <- paste0(data_dir, "schools/reportcard/rc", i, sep = "")
 this_data <- fread(list.files(path = this_folder, recursive = TRUE,
                             pattern = "\\.txt$", 
                             full.names = TRUE),
@@ -99,7 +99,7 @@ select(RCDS, RCDTS, `school name`, `district type name`, `district name`, city, 
 
 reportcard_data <- return_data
 library(rio)
-export(reportcard_data, "schools/reportcard/cleaned/reportcard_data.rds")
+export(reportcard_data, paste0(clean_data_dir, "/reportcard_data.rds"))
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ############# Linking schools with geocoded locations
@@ -107,7 +107,7 @@ export(reportcard_data, "schools/reportcard/cleaned/reportcard_data.rds")
 
 library(sf)
 
-publicschool_loc <- read_sf("schools/geocoded_schools/school_locations.shp")%>%
+publicschool_loc <- read_sf(paste0(data_dir, "schools/geocoded_schools/school_locations.shp"))%>%
   select(CountyName:NCES_ID)%>%
   filter(RecType == "Sch")%>%
   rename(RCD = 3) %>%
@@ -115,4 +115,4 @@ publicschool_loc <- read_sf("schools/geocoded_schools/school_locations.shp")%>%
          RCDS = paste0(RCD, School))%>%
   select(CountyName, City_1, RCDS, FacilityNa, RCD, School)
 
-st_write(publicschool_loc, "schools/reportcard/cleaned/publicschool_loc.shp")
+st_write(publicschool_loc, paste0(clean_data_dir, "/publicschool_loc.shp"))

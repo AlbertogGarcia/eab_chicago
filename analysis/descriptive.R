@@ -15,11 +15,9 @@ palette <- list("white" = "#FAFAFA",
                 "dark_green" = "#496F5D",
                 "gold" = "#DAA520")
 
-file_dir <- "C:/Users/garci/Dropbox/eab_chicago_data"
-
 results_dir <- here::here("results")
 
-cleaned_dir <- here::here("cleaned")
+clean_data_dir <- here::here("cleaned")
 
 fig_dir <- here::here("figs")
 
@@ -27,7 +25,7 @@ fig_dir <- here::here("figs")
 #### Grid unit of analysis
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-eab_panel <- readRDS(paste0(cleaned_dir, "/eab_panel_grid3km.rds"))%>%
+eab_panel <- readRDS(paste0(clean_data_dir, "/eab_panel_grid3km.rds"))%>%
   mutate_at(vars(place_first_detected), as.numeric)
 
 eab_cross <- eab_panel %>%
@@ -37,7 +35,7 @@ eab_cross <- eab_panel %>%
 #### School unit of analysis
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-eab_panel_school <- readRDS(paste0(cleaned_dir, "/eab_panel_school2mi.rds"))
+eab_panel_school <- readRDS(paste0(clean_data_dir, "/eab_panel_school2mi.rds"))
 
 eab_school_cross <- eab_panel_school %>%
   filter(year == 2005)
