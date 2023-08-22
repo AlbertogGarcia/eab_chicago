@@ -398,26 +398,83 @@ ggsave(paste0(fig_dir,'/schart_quad_2mi.png'), width = 8, height = 5.25)
 
 
 
-spec_results_all <- ovr_results_isat %>%
+spec_results_lowinc <- ovr_results_isat %>%
+  filter(group == "low income") %>%
   pivot_wider(names_from = benchmark, values_from = benchmark, values_fn = list(benchmark = ~TRUE), values_fill = list(benchmark = 0))%>%
-  arrange(`academic warning`, below, meets, exceeds)%>%
-  pivot_wider(names_from = group, values_from = group, values_fn = list(group = ~TRUE), values_fill = list(group = 0))%>%
+  arrange(exceeds, meets, below, `academic warning`)%>%
+  #pivot_wider(names_from = group, values_from = group, values_fn = list(group = ~TRUE), values_fill = list(group = 0))%>%
   pivot_wider(names_from = subject, values_from = subject, values_fn = list(subject = ~TRUE), values_fill = list(subject = 0))%>%
   mutate(math = ifelse(reading == TRUE, FALSE, TRUE))%>%
   pivot_wider(names_from = grade, values_from = grade, values_fn = list(grade = ~TRUE), values_fill = list(grade = 0))%>%
-  select(-c(outcome)) %>%
+  select(-c(outcome, group, `academic warning`, below, meets, exceeds))%>%
   as.data.frame()
 
+lowinc_sig <- which(abs(spec_results_lowinc$ATT) >= abs(1.96*spec_results_lowinc$se))
+
+spec_results_nonlowinc <- ovr_results_isat %>%
+  filter(group != "low income") %>%
+  pivot_wider(names_from = benchmark, values_from = benchmark, values_fn = list(benchmark = ~TRUE), values_fill = list(benchmark = 0))%>%
+  arrange(exceeds, meets, below, `academic warning`)%>%
+  #pivot_wider(names_from = group, values_from = group, values_fn = list(group = ~TRUE), values_fill = list(group = 0))%>%
+  pivot_wider(names_from = subject, values_from = subject, values_fn = list(subject = ~TRUE), values_fill = list(subject = 0))%>%
+  mutate(math = ifelse(reading == TRUE, FALSE, TRUE))%>%
+  pivot_wider(names_from = grade, values_from = grade, values_fn = list(grade = ~TRUE), values_fill = list(grade = 0))%>%
+  select(-c(outcome, group, `academic warning`, below, meets, exceeds))%>%
+  as.data.frame()
+
+nonlowinc_sig <- which(abs(spec_results_nonlowinc$ATT) >= abs(1.96*spec_results_nonlowinc$se))
+
 labels <- list(
-               "Benchmark" = c("exceeds", "below", "academic warning", "meets"),
-               "Group" = c("Non low-income", "Low-income"),
+          #     "Benchmark" = c("academic warning", "below", "meets", "exceeds"),
+         #      "Group" = c("Non low-income", "Low-income"),
                "Subject" = c("Math", "Reading"),
                "Grade" = c("8th", "7th","6th", "5th", "4th", "3rd")
 )
 
-schart(spec_results_all, ci=c(0.95), ylab="ATT (percentage of students)", labels = labels,
-       highlight = seq(from = 2, to = 96, by = 2),
-       col.dot=c(palette$dark,"grey","white", palette$blue),
-       bg.dot=c("white","grey","white", palette$blue),
-       col.est=c(palette$dark, palette$blue)
+duo_heights = c(4,3)
+
+png(paste0(fig_dir,"/schart_isat_lowinc_2mi.png"), width = 9, height = 5, units = "in", res = 500)
+par(oma=c(1,0,1,1))
+schart(spec_results_lowinc, ci=c(0.95), ylab="ATT (percentage of students)", labels = labels,
+       col.dot=c(palette$blue,"grey","white", palette$dark),
+       bg.dot=c("white","white","white", palette$dark),
+       col.est=c(palette$blue, palette$dark),
+      n = 12, heights=duo_heights, highlight = lowinc_sig
 ) 
+abline(v=13)
+abline(v=26)
+abline(v=39)
+text(x=6, y=5.75, "Academic Warning", col="black", font=2, cex = 0.8)
+text(x=19.5, y=5.75, "Below", col="black", font=2, cex = 0.8)
+text(x=32.5, y=5.75, "Meets", col="black", font=2, cex = 0.8)
+text(x=46, y=5.75, "Exceeds", col="black", font=2, cex = 0.8)
+dev.off()
+
+
+png(paste0(fig_dir,"/schart_isat_nonlowinc_2mi.png"), width = 9, height = 5, units = "in", res = 500)
+par(oma=c(1,0,1,1))
+schart(spec_results_nonlowinc, ci=c(0.95), ylab="ATT (percentage of students)", labels = labels,
+       col.dot=c(palette$blue,"grey","white", palette$dark),
+       bg.dot=c("white","white","white", palette$dark),
+       col.est=c(palette$blue, palette$dark),
+       n=12, heights=duo_heights, highlight = nonlowinc_sig
+) 
+abline(v=13)
+abline(v=26)
+abline(v=39)
+text(x=6, y=3.25, "Academic Warning", col="black", font=2, cex = 0.8)
+text(x=19.5, y=3.25, "Below", col="black", font=2, cex = 0.8)
+text(x=32.5, y=3.25, "Meets", col="black", font=2, cex = 0.8)
+text(x=46, y=3.25, "Exceeds", col="black", font=2, cex = 0.8)
+dev.off()
+
+plot1 <- readPNG(paste0(fig_dir,'/schart_isat_nonlowinc_2mi.png'))
+plot2 <- readPNG(paste0(fig_dir,'/schart_isat_lowinc_2mi.png'))
+
+
+ggarrange(rasterGrob(plot1),rasterGrob(plot2), 
+          nrow= 2, ncol = 1,
+          labels = c("A", "B"))
+ggsave(paste0(fig_dir,'/schart_duo_2mi.png')
+      # , width = 8, height = 6
+       )
