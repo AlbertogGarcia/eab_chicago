@@ -125,7 +125,7 @@ paper_results <- ovr_results %>%
 kbl(paper_results %>% dplyr::select(canopy, loss, gain),
     format = "latex",
     booktabs = T,
-    caption = "This table shows difference-in-differences estimates of the impact of ash borer infestation on tree cover outcomes within 3.22km (2 miles) of the school. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated schools in the control group.",
+    caption = "Difference-in-differences estimates of the impact of ash borer infestation on tree cover outcomes within 3.22km (2 miles) of the school. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated schools in the control group.",
     col.names = c("Canopy", "Loss (Acres/year)", "Gain (Acres/year)"),
     align = c("l", "c", "c", "c"),
     label = "school-tree-table"
@@ -139,7 +139,7 @@ kbl(paper_results %>% dplyr::select(canopy, loss, gain),
 kbl(paper_results %>% dplyr::select(ISAT_composite, all_tests, all_attend, low_income_attend, enrollment),
     booktabs = T,
     format = "latex",
-    caption = "This table shows difference-in-differences estimates of the impact of ash borer infestation on school-level education outcomes. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated schools in the control group.",
+    caption = "Difference-in-differences estimates of the impact of ash borer infestation on school-level education outcomes. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated schools in the control group.",
     col.names = c("ISAT composite", "All tests", "Attendance rate", "Low-income attend.", "Enrollment"),
     align = c("l", "c", "c", "c", "c", "c"),
     label = "school-educ-table"

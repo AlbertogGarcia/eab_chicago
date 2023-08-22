@@ -165,7 +165,7 @@ row.names(paper_results) <- c("ATT", " ", "Pre-treat mean", "N grid cells")
 kbl(paper_results %>% dplyr::select(canopy, loss, gain),
     format = "latex",
     booktabs = T,
-    caption = "This table shows difference-in-differences estimates of the impact of ash borer infestation on tree cover outcomes across the Chicago metropolitan region. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated grid cells in the control group.",
+    caption = "Difference-in-differences estimates of the impact of ash borer infestation on tree cover outcomes across the Chicago metropolitan region. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated grid cells in the control group.",
     col.names = c("Canopy", "Loss (Acres/year)", "Gain (Acres/year)"),
     align = c("l", "c", "c", "c"),
     label = "grid-tree-table"
@@ -235,7 +235,7 @@ options("modelsummary_format_numeric_latex" = "plain")
 modelsummary(models,
              label = "twfe-grid-het",
              output="latex",
-             title = 'Heterogeneous canopy cover impacts of ash borer infestation',
+             title = 'Heterogeneous canopy cover impacts of ash borer infestation.',
              fmt = f1, # 4 digits and trailing zero
              vcov = ~grid,
              stars = c('*' = .1, '**' = .05, '***' = .01),
