@@ -17,14 +17,13 @@ palette <- list("white" = "#FAFAFA",
                 "dark_green" = "#496F5D",
                 "gold" = "#DAA520")
 
-results_dir <- here::here("results")
+results_dir <- here::here("analysis", "results")
 
 clean_data_dir <- here::here("cleaned")
 
 fig_dir <- here::here("figs")
 
-grid_res <- 5
-eab_panel <- readRDS(paste0(clean_data_dir, "/eab_panel_grid", grid_res, "km.rds"))%>%
+eab_panel <- readRDS(paste0(clean_data_dir, "/eab_panel_grid5km.rds"))%>%
   mutate_at(vars(place_first_detected), as.numeric)%>%
   mutate(gain = gain * 0.2223948433, # converting 900m^2 pixels into acres
          loss = loss * 0.2223948433)
@@ -214,7 +213,7 @@ ggsave(plot = place_canopy_plot, paste0(fig_dir, "/eventstudy_canopy_place.png")
 twfe_canopy_trees <- feols(canopy ~ treated + treated:log(trees_per_acre) +  treated:log(canopy_baseline) | year + grid, data = eab_panel)
 summary(twfe_canopy_trees, vcov = ~grid)
 
-twfe_canopy_income <- feols(canopy ~ treated + treated:log(med_household_income) | year + grid, data = eab_panel)
+twfe_canopy_income <- feols(canopy ~ treated + treated:log(med_household_income) +  treated:log(canopy_baseline)| year + grid, data = eab_panel)
 summary(twfe_canopy_income, vcov = ~grid)
 
 twfe_canopy_it <- feols(canopy ~ treated + treated:log(med_household_income) + treated:log(trees_per_acre) +  treated:log(canopy_baseline) | year + grid, data = eab_panel)
@@ -258,7 +257,7 @@ canopy_results <- data.frame()
 
 for(i in grid_files){
   
-  eab_panel <- readRDS(paste0(out_dir, "/eab_panel_grid", i, "km.rds"))%>%
+  eab_panel <- readRDS(paste0(clean_data_dir, "/eab_panel_grid", i, "km.rds"))%>%
     mutate_at(vars(place_first_detected), as.numeric)%>%
     mutate(gain = gain * 0.2223948433, # converting 900m^2 pixels into acres
            loss = loss * 0.2223948433)
@@ -275,8 +274,9 @@ for(i in grid_files){
   )
   canopy_ovr <- aggte(canopy_attgt, type = "simple")
   
-  canopy_results <- data.frame("grid_size" = ifelse(i != 25, i, 2.5), "ATT" = canopy_ovr$overall.att, "se" = canopy_ovr$overall.se) %>% rbind(canopy_results)
+  canopy_results <- data.frame("grid_size" = i, "ATT" = canopy_ovr$overall.att, "se" = canopy_ovr$overall.se) %>% rbind(canopy_results)
   
+  print(i)
 }
 
 ggplot(canopy_results, aes(x = grid_size, y = ATT))+

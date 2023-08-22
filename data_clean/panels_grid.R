@@ -141,11 +141,11 @@ tmap_save(metro_eab, paste0(fig_dir, "/metro_infestations_map.png"), height = 5,
 ### Raster data on tree loss/gain and canopy cover
 # SILVIS data
 
-tree_gain <- raster::raster(paste0(file_dir, "/tree_data/tree_gain_year.tif"))%>%
+tree_gain <- raster::raster(paste0(data_dir, "/tree_data/tree_gain_year.tif"))%>%
   raster::crop(illinois.shp)
-tree_loss <- raster::raster(paste0(file_dir, "/tree_data/tree_loss_year.tif"))%>%
+tree_loss <- raster::raster(paste0(data_dir, "/tree_data/tree_loss_year.tif"))%>%
   raster::crop(illinois.shp)
-impervious_increase <- raster::raster(paste0(file_dir, "/tree_data/IS_change_year.tif"))%>%
+impervious_increase <- raster::raster(paste0(data_dir, "/tree_data/IS_change_year.tif"))%>%
   raster::crop(illinois.shp)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
