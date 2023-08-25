@@ -2,7 +2,7 @@ library(fixest)
 library(tidyverse)
 library(here)
 library(did)
-library(Hmisc)
+#library(Hmisc)
 library(fixest)
 library(janitor)
 library(kableExtra)
@@ -34,7 +34,9 @@ eab_panel_school <- readRDS(paste0(clean_data_dir, "/eab_panel_school2mi.rds"))%
 
 panel <- eab_panel_school %>%
   mutate_at(vars(year, first_exposed), as.numeric) %>%
-  mutate(e_time = ifelse(first_exposed > 0, year - first_exposed, 0))
+  mutate(
+    e_time = ifelse(first_exposed > 0, year - first_exposed, 0)
+         )
 
 pct_used <- 0.1
 
