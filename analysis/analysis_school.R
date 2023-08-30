@@ -6,6 +6,8 @@ library(did)
 library(fixest)
 library(janitor)
 library(kableExtra)
+library(png)
+library(grid)
 library(ggpubr)
 
 select <- dplyr::select
@@ -26,17 +28,19 @@ clean_data_dir <- here::here("cleaned")
 
 fig_dir <- here::here("figs")
 
-set.seed(0930)
-
 eab_panel_school <- readRDS(paste0(clean_data_dir, "/eab_panel_school2mi.rds"))%>%
   mutate(gain = gain * 0.2223948433, # converting 900m^2 pixels into acres
          loss = loss * 0.2223948433)
 
+<<<<<<< HEAD
+panel <- eab_panel_school 
+=======
 panel <- eab_panel_school %>%
   mutate_at(vars(year, first_exposed), as.numeric) %>%
   mutate(
     e_time = ifelse(first_exposed > 0, year - first_exposed, 0)
          )
+>>>>>>> a0cb36e8e7fb3b978e69a528f44831880e726a3a
 
 pct_used <- 0.1
 
@@ -71,13 +75,14 @@ outcomevars <- c("low_income_attend", "all_attend", "all_tests", "ISAT_composite
                  "enrollment" 
 )
 
-cov_names <- c("cov_white_pct", "cov_black_pct", "cov_hispanic_pct", "cov_asian_pct", "cov_lowinc_pct", "cov_lep_pct"
-               , "cov_enrollment")
+cov_names <- c("cov_white_pct", "cov_black_pct", "cov_hispanic_pct", "cov_asian_pct", "cov_lowinc_pct", "cov_lep_pct", "cov_enrollment"
+              )
 
 xformula <- as.formula(paste("~ ", paste(cov_names, collapse = " + ")))
 
 ovr_results <- data.frame()
 es_results_ed <- data.frame()
+set.seed(1993)
 for(k in outcomevars){
   print(k)
   this_panel <- panel %>%
@@ -90,7 +95,8 @@ for(k in outcomevars){
                   gname = "first_exposed",
                   control_group = "notyettreated",
                   xformla = xformula,
-                  data = this_panel
+                  data = this_panel,
+                  clustervars = "GEOID10"
   )
   
   ovr <- aggte(attgt, type = "simple", na.rm = T)
@@ -134,7 +140,7 @@ kbl(paper_results %>% dplyr::select(canopy, loss, gain),
     )%>%
   kableExtra::row_spec(2, hline_after = TRUE)%>%
   add_header_above(c(" " = 1, "Outcome" = 3))%>%
-  footnote(general = "* p<0.1, ** p<0.05, *** p<0.01; standard errors clustered at school level")%>%
+  footnote(general = "* p<0.1, ** p<0.05, *** p<0.01; standard errors clustered at census tract")%>%
   kable_styling(latex_options = c("hold_position"))%>% 
   kableExtra::save_kable(paste0(results_dir, "/school_results_tree_2mi.tex"))
 
@@ -148,7 +154,7 @@ kbl(paper_results %>% dplyr::select(ISAT_composite, all_tests, all_attend, low_i
 )%>%
   kableExtra::row_spec(2, hline_after = TRUE)%>%
   add_header_above(c(" " = 1, "Outcome" = 5))%>%
-  footnote(general = "* p<0.1, ** p<0.05, *** p<0.01; standard errors clustered at school level")%>%
+  footnote(general = "* p<0.1, ** p<0.05, *** p<0.01; standard errors clustered at census tract")%>%
   kable_styling(latex_options = c("hold_position"))%>% 
   kableExtra::save_kable(paste0(results_dir, "/school_results_educ_2mi.tex"))
 
@@ -181,7 +187,6 @@ all_tests_plot
 all_tests_plot + ggtitle("All test impacts of ash borer infestation by event time")
 ggsave(path = fig_dir, filename = "es_school_all_tests_2mi.png", width = 7, height = 5)
 
-
 canopy_plot <- ggplot(es_results_ed %>% filter(outcome == "canopy"),
                          aes(x = e, y = ATT)) +
   ylab("Mean canopy cover probability")+ xlab("Years since infestation detection")+
@@ -201,50 +206,9 @@ ggarrange(canopy_plot, isat_plot, ncol = 2, nrow = 1,
 ggsave(path = fig_dir, filename = "es_school_duo_2mi.png", width = 9, height = 3.5)
 
 
-ggarrange(isat_plot, all_tests_plot, canopy_plot, ncol = 1, nrow = 3,
-          labels = c("A", "B", "C"))
-ggsave(path = fig_dir, filename = "es_school_trio_2mi.png", width = 4, height = 10)
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-### TWFE results for heterogeneity
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-library(fixest)
-
-### Education outcomes
-
-twfe_tests <- feols(all_tests ~ treated * lowinc_pct
-                    + white_pct + black_pct + hispanic_pct + asian_pct + lowinc_pct+ enrollment
-                    | school_ID + year, 
-                    data = panel)
-summary(twfe_tests)
-
-
-twfe_isat <- feols(ISAT_composite ~ treated * lowinc_pct
-                   + white_pct + black_pct + hispanic_pct + asian_pct + lowinc_pct+ enrollment
-                   | school_ID + year, 
-                   data = panel)
-summary(twfe_isat)
-
-twfe_attend <- feols(all_attend ~ treated * lowinc_pct
-                     + white_pct + black_pct + hispanic_pct + asian_pct + lowinc_pct+ enrollment
-                     | school_ID + year, 
-                     data = panel)
-summary(twfe_attend)
-
-### Tree cover outcomes
-twfe_canopy <- feols(canopy ~ treated * lowinc_pct
-                     + white_pct + black_pct + hispanic_pct + asian_pct + lowinc_pct + enrollment
-                     | school_ID + year, 
-                     data = panel)
-summary(twfe_canopy)
-
-### ash intensity impacts
-twfe_ash <- feols(canopy ~ treated * pct_trees_in_area
-                     + white_pct + black_pct + hispanic_pct + asian_pct + lowinc_pct + enrollment
-                     | school_ID + year, 
-                     data = panel)
-summary(twfe_ash)
+ggarrange(canopy_plot, isat_plot, ncol = 1, nrow = 2,
+          labels = c("A", "B"))
+ggsave(path = fig_dir, filename = "es_school_duo_vert_2mi.png", width = 4, height = 10)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -284,7 +248,8 @@ for(k in tests){
                   gname = "first_exposed",
                   control_group = "notyettreated",
                   xformla = xformula,
-                  data = this_panel
+                  data = this_panel,
+                  clustervars = "GEOID10"
   )
 
   ovr <- aggte(attgt, type = "simple", na.rm = T)
@@ -295,110 +260,6 @@ for(k in tests){
     rbind(ovr_results_isat)
   
 }
-
-spec_results_warning <- ovr_results_isat %>%
-  filter(grepl("warning", benchmark, fixed = TRUE))%>%
-  pivot_wider(names_from = group, values_from = group, values_fn = list(group = ~TRUE), values_fill = list(group = 0))%>%
-  pivot_wider(names_from = subject, values_from = subject, values_fn = list(subject = ~TRUE), values_fill = list(subject = 0))%>%
-  mutate(math = ifelse(reading == TRUE, FALSE, TRUE))%>%
-  pivot_wider(names_from = grade, values_from = grade, values_fn = list(grade = ~TRUE), values_fill = list(grade = 0))%>%
-  select(-c(outcome, benchmark)) %>%
-  as.data.frame()
-
-spec_results_below <- ovr_results_isat %>%
-  filter(grepl("below", benchmark, fixed = TRUE))%>%
-  pivot_wider(names_from = group, values_from = group, values_fn = list(group = ~TRUE), values_fill = list(group = 0))%>%
-  pivot_wider(names_from = subject, values_from = subject, values_fn = list(subject = ~TRUE), values_fill = list(subject = 0))%>%
-  mutate(math = ifelse(reading == TRUE, FALSE, TRUE))%>%
-  pivot_wider(names_from = grade, values_from = grade, values_fn = list(grade = ~TRUE), values_fill = list(grade = 0))%>%
-  select(-c(outcome, benchmark)) %>%
-  as.data.frame()
-
-spec_results_meets <- ovr_results_isat %>%
-  filter(grepl("meets", benchmark, fixed = TRUE))%>%
-  pivot_wider(names_from = group, values_from = group, values_fn = list(group = ~TRUE), values_fill = list(group = 0))%>%
-  pivot_wider(names_from = subject, values_from = subject, values_fn = list(subject = ~TRUE), values_fill = list(subject = 0))%>%
-  mutate(math = ifelse(reading == TRUE, FALSE, TRUE))%>%
-  pivot_wider(names_from = grade, values_from = grade, values_fn = list(grade = ~TRUE), values_fill = list(grade = 0))%>%
-  select(-c(outcome, benchmark)) %>%
-  as.data.frame()
-
-spec_results_exceeds <- ovr_results_isat %>%
-  filter(grepl("exceeds", benchmark, fixed = TRUE))%>%
-  pivot_wider(names_from = group, values_from = group, values_fn = list(group = ~TRUE), values_fill = list(group = 0))%>%
-  pivot_wider(names_from = subject, values_from = subject, values_fn = list(subject = ~TRUE), values_fill = list(subject = 0))%>%
-  mutate(math = ifelse(reading == TRUE, FALSE, TRUE))%>%
-  pivot_wider(names_from = grade, values_from = grade, values_fn = list(grade = ~TRUE), values_fill = list(grade = 0))%>%
-  select(-c(outcome, benchmark)) %>%
-  as.data.frame()
-
-
-
-
-labels <- list("Group" = c("Non low-income", "Low-income"),
-               "Subject" = c("Math", "Reading"),
-               "Grade" = c("8th", "7th","6th", "5th", "4th", "3rd")
-)
-
-
-#Create the plot
-
-png(paste0(fig_dir,"/schart_isat_warning_2mi.png"), width = 8, height = 5, units = "in", res = 300)
-
-par(oma=c(1,0,1,1))
-schart(spec_results_warning, ci=c(0.95), ylab="ATT (percentage of students)", labels = labels,
-       highlight = seq(from = 2, to = 24, by = 2),
-       col.dot=c(palette$dark,"grey","white", palette$blue),
-       bg.dot=c("white","grey","white", palette$blue),
-       col.est=c(palette$dark, palette$blue)
-) 
-# text(x=7 , y=5, "Below", col=palette$black, font=1)
-dev.off()
-
-png(paste0(fig_dir,"/schart_isat_below_2mi.png"), width = 8, height = 5, units = "in", res = 300)
-
-schart(spec_results_below, ci=c(0.95), ylab="ATT (percentage of students)", labels = labels,
-       highlight = seq(from = 2, to = 24, by = 2),
-       col.dot=c(palette$dark,"grey","white", palette$blue),
-       bg.dot=c("white","grey","white", palette$blue),
-       col.est=c(palette$dark, palette$blue)
-) 
-dev.off()
-
-png(paste0(fig_dir,"/schart_isat_meets_2mi.png"), width = 8, height = 5, units = "in", res = 300)
-schart(spec_results_meets, ci=c(0.95), ylab="ATT (percentage of students)", labels = labels,
-       highlight = seq(from = 2, to = 24, by = 2),
-       col.dot=c(palette$dark,"grey","white", palette$blue),
-       bg.dot=c("white","grey","white", palette$blue),
-       col.est=c(palette$dark, palette$blue)
-) 
-dev.off()
-
-png(paste0(fig_dir,"/schart_isat_exceeds_2mi.png"), width = 8, height = 5, units = "in", res = 300)
-schart(spec_results_exceeds, ci=c(0.95), ylab="ATT (percentage of students)", labels = labels,
-       highlight = seq(from = 2, to = 24, by = 2),
-       col.dot=c(palette$dark,"grey","white", palette$blue),
-       bg.dot=c("white","grey","white", palette$blue),
-       col.est=c(palette$dark, palette$blue)
-) 
-dev.off()
-
-library(png)
-library(grid)
-library(gridExtra)
-
-plot1 <- readPNG(paste0(fig_dir,'/schart_isat_warning_2mi.png'))
-plot2 <- readPNG(paste0(fig_dir,'/schart_isat_below_2mi.png'))
-plot3 <- readPNG(paste0(fig_dir,'/schart_isat_meets_2mi.png'))
-plot4 <- readPNG(paste0(fig_dir,'/schart_isat_exceeds_2mi.png'))
-
-
-ggarrange(rasterGrob(plot1),rasterGrob(plot2), rasterGrob(plot3), rasterGrob(plot4), 
-          nrow= 2, ncol = 2,
-          labels = c("A", "B", "C", "D"))
-ggsave(paste0(fig_dir,'/schart_quad_2mi.png'), width = 8, height = 5.25)
-
-
 
 spec_results_lowinc <- ovr_results_isat %>%
   filter(group == "low income") %>%
@@ -437,37 +298,41 @@ duo_heights = c(4,3)
 
 png(paste0(fig_dir,"/schart_isat_lowinc_2mi.png"), width = 9, height = 5, units = "in", res = 500)
 par(oma=c(1,0,1,1))
-schart(spec_results_lowinc, ci=c(0.95), ylab="ATT (percentage of students)", labels = labels,
-       col.dot=c(palette$blue,"grey","white", palette$dark),
-       bg.dot=c("white","white","white", palette$dark),
-       col.est=c(palette$blue, palette$dark),
+schart(spec_results_lowinc, ci=c(0.95), ylab="ATT (percentage of students\nmeeting given threshold)", labels = labels,
+       col.dot=c(palette$dark,"grey","white", palette$blue),
+       bg.dot=c(palette$dark,"white","white", palette$blue),
+       col.est=c(palette$dark, palette$blue),
       n = 12, heights=duo_heights, highlight = lowinc_sig
 ) 
 abline(v=13)
 abline(v=26)
 abline(v=39)
-text(x=6, y=5.75, "Academic Warning", col="black", font=2, cex = 0.8)
-text(x=19.5, y=5.75, "Below", col="black", font=2, cex = 0.8)
-text(x=32.5, y=5.75, "Meets", col="black", font=2, cex = 0.8)
-text(x=46, y=5.75, "Exceeds", col="black", font=2, cex = 0.8)
+text(x=6, y=5.75, "Academic Warning", col=palette$dark, font=2, cex = 0.8)
+text(x=19.5, y=5.75, "Below", col=palette$dark, font=2, cex = 0.8)
+text(x=32.5, y=5.75, "Meets", col=palette$dark, font=2, cex = 0.8)
+text(x=46, y=5.75, "Exceeds", col=palette$dark, font=2, cex = 0.8)
+legend(x=1, y=-5, col = palette$blue, legend = "p < 0.05", seg.len=0.65, inset = 0.005,  box.lty=0, cex=0.9, lty = 1, lwd = 4, bg="transparent")
+
 dev.off()
 
 
 png(paste0(fig_dir,"/schart_isat_nonlowinc_2mi.png"), width = 9, height = 5, units = "in", res = 500)
 par(oma=c(1,0,1,1))
-schart(spec_results_nonlowinc, ci=c(0.95), ylab="ATT (percentage of students)", labels = labels,
-       col.dot=c(palette$blue,"grey","white", palette$dark),
-       bg.dot=c("white","white","white", palette$dark),
-       col.est=c(palette$blue, palette$dark),
+schart(spec_results_nonlowinc, ci=c(0.95), ylab="ATT (percentage of students\nmeeting given threshold)", labels = labels,
+       col.dot=c(palette$dark,"grey","white", palette$blue),
+       bg.dot=c(palette$dark,"white","white", palette$blue),
+       col.est=c(palette$dark, palette$blue),
        n=12, heights=duo_heights, highlight = nonlowinc_sig
 ) 
 abline(v=13)
 abline(v=26)
 abline(v=39)
-text(x=6, y=3.25, "Academic Warning", col="black", font=2, cex = 0.8)
-text(x=19.5, y=3.25, "Below", col="black", font=2, cex = 0.8)
-text(x=32.5, y=3.25, "Meets", col="black", font=2, cex = 0.8)
-text(x=46, y=3.25, "Exceeds", col="black", font=2, cex = 0.8)
+text(x=6, y=3.25, "Academic Warning", col=palette$dark, font=2, cex = 0.8)
+text(x=19.5, y=3.25, "Below", col=palette$dark, font=2, cex = 0.8)
+text(x=32.5, y=3.25, "Meets", col=palette$dark, font=2, cex = 0.8)
+text(x=46, y=3.25, "Exceeds", col=palette$dark, font=2, cex = 0.8)
+legend(x=1, y=-3.3, col = palette$blue, legend = "p < 0.05", seg.len=0.65, inset = 0.005,  box.lty=0, cex=0.9, lty = 1, lwd = 4, bg="transparent")
+
 dev.off()
 
 plot1 <- readPNG(paste0(fig_dir,'/schart_isat_nonlowinc_2mi.png'))
@@ -478,5 +343,5 @@ ggarrange(rasterGrob(plot1),rasterGrob(plot2),
           nrow= 2, ncol = 1,
           labels = c("A", "B"))
 ggsave(paste0(fig_dir,'/schart_duo_2mi.png')
-      # , width = 8, height = 6
+       , width = 5, height = 5
        )
