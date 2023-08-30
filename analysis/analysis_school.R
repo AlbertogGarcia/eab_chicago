@@ -32,15 +32,15 @@ eab_panel_school <- readRDS(paste0(clean_data_dir, "/eab_panel_school2mi.rds"))%
   mutate(gain = gain * 0.2223948433, # converting 900m^2 pixels into acres
          loss = loss * 0.2223948433)
 
-<<<<<<< HEAD
+
 panel <- eab_panel_school 
-=======
-panel <- eab_panel_school %>%
+
+  panel <- eab_panel_school %>%
   mutate_at(vars(year, first_exposed), as.numeric) %>%
   mutate(
     e_time = ifelse(first_exposed > 0, year - first_exposed, 0)
-         )
->>>>>>> a0cb36e8e7fb3b978e69a528f44831880e726a3a
+  )
+
 
 pct_used <- 0.1
 
@@ -76,7 +76,7 @@ outcomevars <- c("low_income_attend", "all_attend", "all_tests", "ISAT_composite
 )
 
 cov_names <- c("cov_white_pct", "cov_black_pct", "cov_hispanic_pct", "cov_asian_pct", "cov_lowinc_pct", "cov_lep_pct", "cov_enrollment"
-              )
+)
 
 xformula <- as.formula(paste("~ ", paste(cov_names, collapse = " + ")))
 
@@ -115,12 +115,12 @@ for(k in outcomevars){
 
 paper_results <- ovr_results %>%
   mutate(
-         stars = ifelse(between(abs(ATT/se), 1.645, 1.96), "*",
-                        ifelse(between(abs(ATT/se), 1.96, 2.58), "**",
-                               ifelse(abs(ATT/se) >= 2.58, "***", "")
-                               )
-  )
-         )%>%
+    stars = ifelse(between(abs(ATT/se), 1.645, 1.96), "*",
+                   ifelse(between(abs(ATT/se), 1.96, 2.58), "**",
+                          ifelse(abs(ATT/se) >= 2.58, "***", "")
+                   )
+    )
+  )%>%
   mutate_at(vars(ATT, se, pre.treat), ~ round(., digits = 3))%>%
   mutate(se = paste0("(", se, ")"),
          ATT = paste0(ATT, stars))%>%
@@ -128,7 +128,7 @@ paper_results <- ovr_results %>%
   t() %>%
   row_to_names(row_number = 1) %>%
   as.data.frame()
-  row.names(paper_results) <- c("ATT", " ", "Pre-treat mean", "N schools")
+row.names(paper_results) <- c("ATT", " ", "Pre-treat mean", "N schools")
 
 kbl(paper_results %>% dplyr::select(canopy, loss, gain),
     format = "latex",
@@ -137,7 +137,7 @@ kbl(paper_results %>% dplyr::select(canopy, loss, gain),
     col.names = c("Canopy", "Loss (Acres/year)", "Gain (Acres/year)"),
     align = c("l", "c", "c", "c"),
     label = "school-tree-table"
-    )%>%
+)%>%
   kableExtra::row_spec(2, hline_after = TRUE)%>%
   add_header_above(c(" " = 1, "Outcome" = 3))%>%
   footnote(general = "* p<0.1, ** p<0.05, *** p<0.01; standard errors clustered at census tract")%>%
@@ -174,7 +174,7 @@ isat_plot + ggtitle("ISAT impacts of ash borer infestation by event time")
 ggsave(path = fig_dir, filename = "es_school_isat_2mi.png", width = 7, height = 5)
 
 all_tests_plot <- ggplot(es_results_ed %>% filter(outcome == "all_tests"),
-                    aes(x = e, y = ATT)) +
+                         aes(x = e, y = ATT)) +
   ylab("All reported tests achievement")+ xlab("Years since infestation detection")+
   geom_ribbon(aes(ymin= ATT - crit*se, ymax=ATT + crit*se), fill = palette$light_grey, color = palette$light_grey, alpha=1)+
   geom_line() +
@@ -188,7 +188,7 @@ all_tests_plot + ggtitle("All test impacts of ash borer infestation by event tim
 ggsave(path = fig_dir, filename = "es_school_all_tests_2mi.png", width = 7, height = 5)
 
 canopy_plot <- ggplot(es_results_ed %>% filter(outcome == "canopy"),
-                         aes(x = e, y = ATT)) +
+                      aes(x = e, y = ATT)) +
   ylab("Mean canopy cover probability")+ xlab("Years since infestation detection")+
   geom_ribbon(aes(ymin= ATT - crit*se, ymax=ATT + crit*se), fill = palette$light_grey, color = palette$light_grey, alpha=1)+
   geom_line() +
@@ -220,9 +220,9 @@ groups <- c(
   "low income_", "non-low income_")
 grades <- c("gr3", "gr4", "gr5", "gr6", "gr7", "gr8")
 categ <- c(" read school meets", " math school meets", 
-" read school academic warning", " math school academic warning",
-" read school below", " math school below", 
-" read school exceeds", " math school exceeds"
+           " read school academic warning", " math school academic warning",
+           " read school below", " math school below", 
+           " read school exceeds", " math school exceeds"
 )
 tests <- as.vector(outer(as.vector(outer(test, groups, paste0)), as.vector(outer(grades, categ, paste0)), paste0))
 
@@ -237,7 +237,7 @@ for(k in tests){
                      ifelse(grepl("warning", k, fixed = TRUE), "academic warning",
                             ifelse(grepl("exceeds", k, fixed = TRUE), "exceeds", "below")
                      )
-                     )
+  )
   
   this_panel <- panel %>%
     mutate_at(vars(k), as.numeric)
@@ -251,12 +251,12 @@ for(k in tests){
                   data = this_panel,
                   clustervars = "GEOID10"
   )
-
+  
   ovr <- aggte(attgt, type = "simple", na.rm = T)
-
+  
   ovr_results_isat <- data.frame("outcome" = k, "ATT" = ovr$overall.att, "se" = ovr$overall.se
                                  , "group" = group, "grade" = grade, "subject" = subject, "benchmark" = benchmark
-                                 )%>%
+  )%>%
     rbind(ovr_results_isat)
   
 }
@@ -288,10 +288,10 @@ spec_results_nonlowinc <- ovr_results_isat %>%
 nonlowinc_sig <- which(abs(spec_results_nonlowinc$ATT) >= abs(1.96*spec_results_nonlowinc$se))
 
 labels <- list(
-          #     "Benchmark" = c("academic warning", "below", "meets", "exceeds"),
-         #      "Group" = c("Non low-income", "Low-income"),
-               "Subject" = c("Math", "Reading"),
-               "Grade" = c("8th", "7th","6th", "5th", "4th", "3rd")
+  #     "Benchmark" = c("academic warning", "below", "meets", "exceeds"),
+  #      "Group" = c("Non low-income", "Low-income"),
+  "Subject" = c("Math", "Reading"),
+  "Grade" = c("8th", "7th","6th", "5th", "4th", "3rd")
 )
 
 duo_heights = c(4,3)
@@ -302,7 +302,7 @@ schart(spec_results_lowinc, ci=c(0.95), ylab="ATT (percentage of students\nmeeti
        col.dot=c(palette$dark,"grey","white", palette$blue),
        bg.dot=c(palette$dark,"white","white", palette$blue),
        col.est=c(palette$dark, palette$blue),
-      n = 12, heights=duo_heights, highlight = lowinc_sig
+       n = 12, heights=duo_heights, highlight = lowinc_sig
 ) 
 abline(v=13)
 abline(v=26)
@@ -344,4 +344,4 @@ ggarrange(rasterGrob(plot1),rasterGrob(plot2),
           labels = c("A", "B"))
 ggsave(paste0(fig_dir,'/schart_duo_2mi.png')
        , width = 5, height = 5
-       )
+)
