@@ -76,7 +76,8 @@ ash_by_county <- read.csv(paste0(data_dir, "tree_data/ash_by_county.csv"))
 
 # Geocoded confirmed EAB infestations
 eab_infestations <- read_sf(paste0(data_dir, "eeb_infestations/eeb_address_geocode.shp"))%>%
-  dplyr::select(Date, City, Match_addr, City_1, Address)%>%
+  dplyr::select(Date, City)%>%
+  rename(city_infestation = City)%>%
   separate(Date, c("Year", NA, NA))%>%
   mutate(Year = as.numeric(Year))%>%
   st_transform(my_crs)
@@ -176,12 +177,11 @@ canopy_raster_list <- read_emapr(bands, canopy_filelist)
 library(nngeo)
 publicschool_loc <- read_sf(paste0(clean_data_dir, "/publicschool_loc.shp"))%>%
   st_transform(my_crs)%>%
-  select(RCDS)%>%
+  select(RCDS, RCD)%>%
   st_crop(extent_roi)
 
 ### Create buffer around schools from which to determine infestation exposure
 
-#treatment_buffer = 2000
 meters_per_mile = 1609.34
 treatment_buffer = meters_per_mile * 2
 
@@ -193,12 +193,12 @@ school_infestation <- publicschool_loc %>%
   st_join(st_buffer(eab_infestations, treatment_buffer))%>%
   group_by(RCDS)%>%
   mutate(first_exposed = min(as.numeric(Year), na.rm = T))%>%
-  mutate_at(vars(first_exposed), ~replace(., is.infinite(.), 0))%>%
-  mutate_at(vars(first_exposed), ~replace(., is.na(.), 0))%>%
-  ungroup
+  mutate_at(vars(first_exposed), ~replace(., is.na(.) | is.infinite(.), 0))%>%
+  slice_head()%>%
+  ungroup %>%
+  select(- Year)
 
 school_infestation$geometry <- NULL
-
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #### Add in report card data (education outcome data)
@@ -241,13 +241,14 @@ covs_school <- paste0("cov_", seq(from = 1, to = length(control_vars), by = 1))
 ##### extract canopy cover data
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-publicschool_buffer <- st_buffer(publicschool_loc, treatment_buffer)%>%
-  st_crop(extent_roi)
-
 library(exactextractr)
 min_year = 1995
 max_year = 2015
 year_list <- seq(from = min_year, to = max_year, by = 1)
+
+publicschool_buffer <- publicschool_loc %>%
+  st_crop(extent_roi) %>%
+  st_buffer(treatment_buffer)
 
 for(i in year_list){
   
@@ -286,13 +287,12 @@ for(i in 1:length(bands)){
   
 }
 
+extracted_data <- publicschool_buffer 
+  
+extracted_data$geometry = NULL
+
+
 max_canopy_year = min_canopy_year + length(bands) - 1
-
-extracted_school_data <- publicschool_buffer
-
-extracted_school_data$geometry = NULL
-
-
 
 
 canopy_panel <- extracted_school_data %>%
@@ -306,8 +306,9 @@ canopy_panel <- extracted_school_data %>%
   filter(between(year, 2003, 2014))
 
 eab_panel <- school_infestation %>%
-  left_join(canopy_panel, by = c("RCDS"))%>%
-  left_join(reportcard_data, by = c("RCDS", "year"))%>%
+  left_join(canopy_panel, by = c("RCDS", "RCD"))%>%
+  #left_join(reportcard_data, by = c("RCDS", "year"))%>%
+  inner_join(reportcard_data, by = c("RCDS", "year"))%>%
   group_by(RCDS, year)%>%
   slice_head()%>%
   ungroup %>%
@@ -341,13 +342,15 @@ eab_panel_school <- eab_panel %>%
                  ISAT_composite,
                  low_income_attend,
                  all_attend,
-                 white_pct, black_pct, hispanic_pct, asian_pct, lowinc_pct, enrollment
+                 white_pct, black_pct, hispanic_pct, asian_pct, lowinc_pct, enrollment,
+                 year, first_exposed
   ),
-  as.numeric)
+  as.numeric)%>%
+  mutate(e_time = ifelse(first_exposed > 0, year - first_exposed, 0))
 
 
 library(rio)
 
-export(eab_panel_school, paste0(clean_data_dir, "/eab_panel_school2mi.rds"))
+export(eab_panel_school, paste0(clean_data_dir, "/eab_panel_school2km.rds"))
 
 
