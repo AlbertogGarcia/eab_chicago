@@ -233,7 +233,7 @@ names_coef <- c("treated" = "Infestation",
 f1 <- function(x) format(round(x, 4), big.mark=",")
 options("modelsummary_format_numeric_latex" = "plain")
 modelsummary(models,
-             label = "twfe-grid-het",
+             caption = "Two-way fixed effects estimates detailing heterogeneity in the impacts of ash borer infestation at the grid-cell level.",
              output="latex",
              title = 'Heterogeneous canopy cover impacts of ash borer infestation.',
              fmt = f1, # 4 digits and trailing zero
@@ -242,7 +242,8 @@ modelsummary(models,
              coef_rename = names_coef,
              gof_omit = 'DF|Deviance|Adj|Within|Pseudo|AIC|BIC|Log|Year|FE|Std|RMSE'
              #    , add_rows = rows
-             , notes = "Standard errors are clustered at the grid level."
+             , notes = "Standard errors are clustered at the grid level.",
+             label = "twfe-grid-het"
 )%>%
   kable_styling(latex_options = c("hold_position"))%>% 
   kableExtra::save_kable(paste0(results_dir, "/twfe_het_grid_main.tex"))
