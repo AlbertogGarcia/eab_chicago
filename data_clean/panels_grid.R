@@ -155,7 +155,6 @@ impervious_increase <- raster::raster(paste0(data_dir, "/tree_data/IS_change_yea
 #Emapr data
 canopy_filelist <- list.files(paste0(data_dir, 'tree_data/emapr/canopy_cover'), pattern = '.tif', full.names = TRUE)
 
-biomass_filelist <- list.files(paste0(data_dir, 'tree_data/emapr/biomass'), pattern = '.tif', full.names = TRUE)
 min_bands <- 2000 - 1990 + 1
 max_bands <- 2015 - 1990 + 1
 bands <- min_bands:max_bands
@@ -331,12 +330,12 @@ for(g in grid_sizes_km){
     group_by(year, grid)%>%
     slice_head()%>%
     mutate(#net_gain = gain - loss,
-      treated = ifelse(year >= first_detected & year > 0, 1, 0))
+      treated = ifelse(year >= first_detected & year > 0, 1, 0),
+      e_time = ifelse(first_exposed > 0, year - first_exposed, 0)
+      )
   
   library(rio)
   export(eab_panel, paste0(clean_data_dir, "/eab_panel_grid", g, "km.rds"))
-  
-  
   
 }
 

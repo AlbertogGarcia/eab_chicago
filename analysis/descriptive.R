@@ -8,6 +8,7 @@ library(grid)
 
 palette <- list("white" = "#FAFAFA",
                 "light_grey" = "#d9d9d9",
+                "dark_grey" = "grey30",
                 "dark" = "#0c2230",
                 "red" = "#ed195a",
                 "blue" = "#1c86ee",
@@ -39,6 +40,52 @@ eab_panel_school <- readRDS(paste0(clean_data_dir, "/eab_panel_school2mi.rds"))
 
 eab_school_cross <- eab_panel_school %>%
   filter(year == 2005)
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#### Expansion of ash borer exposure across schools
+
+exposure_by_year <- eab_panel_school %>%
+  group_by(RCDS)%>%
+  slice_head()%>%
+  ungroup%>%
+  group_by(first_exposed)%>%
+  count()%>%
+  filter(first_exposed != 0)%>%
+  ungroup %>%
+  mutate(cum_exposed = cumsum(n))
+
+coeff <- 4
+
+ggplot(exposure_by_year, aes(x=first_exposed)) +
+  geom_col( aes(y=n), fill=palette$blue, color = palette$dark_grey, alpha = 0.75, width = 0.75) + 
+  geom_line( aes(y= cum_exposed / coeff ), size=2, color=palette$dark) +
+  scale_y_continuous(
+    # Features of the first axis
+    name = "Newly exposed schools",
+    # Add a second axis and specify its features
+    sec.axis = sec_axis(~.*coeff, name="Cumulative number of treated schools")
+  ) + 
+  theme_classic() +
+  theme(
+    axis.title.y = element_text(color = palette$dark_grey),
+    axis.text.y = element_text(color = palette$blue),
+    axis.text.y.right = element_text(color = palette$dark),
+    axis.title.y.right = element_text(color = palette$dark)
+  ) +
+  scale_x_continuous("Year", breaks = seq(2006, 2014, 2), labels = seq(2006, 2014, 2))
+ggsave(paste0(fig_dir, "/cumulative_school_exposure.png"), width = 6, height = 4)
+
+
+
+ggplot(eab_school_cross, aes(x = first_exposed, y = canopy))+
+  xlab("% students meeting or exceeding ISAT threshold (2005)") + 
+  geom_point(color = palette$dark, shape = 21)+
+  geom_smooth(method='lm', formula= y~x, color = palette$blue,
+              size = 1.5
+  )+
+  theme_classic()+
+  ylab("Mean canopy cover")
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #### How is tree cover correlated with test scores
 

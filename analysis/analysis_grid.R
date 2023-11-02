@@ -51,7 +51,7 @@ ovr_results <- data.frame("outcome" = "loss", "ATT" = loss_ovr$overall.att, "se"
 )%>%
   rbind(ovr_results)
 
-loss_es <- aggte(loss_attgt, type = "dynamic", min_e = -7, max_e = 6)
+loss_es <- aggte(loss_attgt, type = "dynamic", min_e = min_e, max_e = max_e)
 
 es_plot_df <- data.frame("outcome" = "loss", "ATT" = loss_es$att.egt, "e" = loss_es$egt, "se" = loss_es$se.egt, "crit" = loss_es$crit.val.egt)
 
@@ -85,7 +85,7 @@ ovr_results <- data.frame("outcome" = "gain", "ATT" = gain_ovr$overall.att, "se"
 )%>%
   rbind(ovr_results)
 
-gain_es <- aggte(gain_attgt, type = "dynamic", min_e = -7, max_e = 6)
+gain_es <- aggte(gain_attgt, type = "dynamic", min_e = min_e, max_e = max_e)
 
 es_plot_df <- data.frame("outcome" = "gain", "ATT" = gain_es$att.egt, "e" = gain_es$egt, "se" = gain_es$se.egt, "crit" = loss_es$crit.val.egt)
 
@@ -119,7 +119,7 @@ ovr_results <- data.frame("outcome" = "canopy", "ATT" = canopy_ovr$overall.att, 
 )%>%
   rbind(ovr_results)
 
-canopy_es <- aggte(canopy_attgt, type = "dynamic", min_e = -7, max_e = 6)
+canopy_es <- aggte(canopy_attgt, type = "dynamic", min_e = min_e, max_e = max_e)
 
 es_plot_df <- data.frame("outcome" = "canopy", "ATT" = canopy_es$att.egt, "e" = canopy_es$egt, "se" = canopy_es$se.egt, "crit" = loss_es$crit.val.egt)
 

@@ -168,16 +168,13 @@ read_emapr <- function(bands, file_list){
 
 canopy_raster_list <- read_emapr(bands, canopy_filelist)
 
-
-
-
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #### Read in School locations
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 library(nngeo)
 publicschool_loc <- read_sf(paste0(clean_data_dir, "/publicschool_loc.shp"))%>%
   st_transform(my_crs)%>%
-  select(RCDS, RCD)%>%
+  select(RCDS, RCD, FacilityNa)%>%
   st_crop(extent_roi)
 
 ### Create buffer around schools from which to determine infestation exposure
@@ -186,8 +183,8 @@ meters_per_mile = 1609.34
 treatment_buffer = meters_per_mile * 2
 
 school_infestation <- publicschool_loc %>%
-  st_join(counties.shp %>% select(NAME))%>%
-  left_join(ash_by_county, by = c("NAME" = "County"))%>%
+  st_join(roi %>% select(County))%>%
+  left_join(ash_by_county, by = c("County"))%>%
   st_join(ACS.shp)%>%
   mutate(dist_to_infestation_site = unlist(st_nn(., eab_infestations, k = 1, returnDist = T)[[2]]))%>%
   st_join(st_buffer(eab_infestations, treatment_buffer))%>%
@@ -295,7 +292,7 @@ extracted_data$geometry = NULL
 max_canopy_year = min_canopy_year + length(bands) - 1
 
 
-canopy_panel <- extracted_school_data %>%
+canopy_panel <- extracted_data %>%
   mutate(canopy_baseline = canopy_2006)%>%
   pivot_longer(cols = paste0("gain_",min_year):paste0("canopy_",max_canopy_year),
                names_to = "type_year", 
@@ -306,8 +303,7 @@ canopy_panel <- extracted_school_data %>%
   filter(between(year, 2003, 2014))
 
 eab_panel <- school_infestation %>%
-  left_join(canopy_panel, by = c("RCDS", "RCD"))%>%
-  #left_join(reportcard_data, by = c("RCDS", "year"))%>%
+  left_join(canopy_panel, by = c("RCDS", "RCD", "FacilityNa"))%>%
   inner_join(reportcard_data, by = c("RCDS", "year"))%>%
   group_by(RCDS, year)%>%
   slice_head()%>%
@@ -351,6 +347,4 @@ eab_panel_school <- eab_panel %>%
 
 library(rio)
 
-export(eab_panel_school, paste0(clean_data_dir, "/eab_panel_school2km.rds"))
-
-
+export(eab_panel_school, paste0(clean_data_dir, "/eab_panel_school2mi.rds"))
