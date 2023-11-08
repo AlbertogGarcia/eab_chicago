@@ -77,7 +77,7 @@ ggsave(paste0(fig_dir, "/cumulative_school_exposure.png"), width = 6, height = 4
 
 
 
-ggplot(eab_school_cross, aes(x = first_exposed, y = canopy))+
+ggplot(eab_school_cross, aes(x = canopy, y = first_exposed))+
   xlab("% students meeting or exceeding ISAT threshold (2005)") + 
   geom_point(color = palette$dark, shape = 21)+
   geom_smooth(method='lm', formula= y~x, color = palette$blue,
@@ -89,7 +89,7 @@ ggplot(eab_school_cross, aes(x = first_exposed, y = canopy))+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #### How is tree cover correlated with test scores
 
-p1 <- ggplot(eab_school_cross, aes(x = ISAT_composite, y = canopy))+
+p1 <- ggplot(eab_school_cross, aes(x = canopy, y = ISAT_composite))+
   xlab("% students meeting or exceeding ISAT threshold (2005)") + 
   geom_point(color = palette$dark, shape = 21)+
   geom_smooth(method='lm', formula= y~x, color = palette$blue,

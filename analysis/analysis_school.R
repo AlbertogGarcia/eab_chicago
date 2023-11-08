@@ -70,20 +70,56 @@ treat_lowinc_attend <- round(mean(subset(panel, year < first_exposed & first_exp
 ### Callaway and Sant'anna estimates
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-outcomevars <- c("low_income_attend", "all_attend", "all_tests", "ISAT_composite",
-                 "gain", "loss", "canopy", 
-                 "enrollment" 
-)
-
 cov_names <- c("cov_white_pct", "cov_black_pct", "cov_hispanic_pct", "cov_asian_pct", "cov_lowinc_pct", "cov_lep_pct", "cov_enrollment"
 )
 
 xformula <- as.formula(paste("~ ", paste(cov_names, collapse = " + ")))
 
+school_outcomes <- c("low_income_attend", "all_attend", "all_tests", "ISAT_composite",
+                 "PSAE_composite",
+                 "enrollment" 
+)
+
 ovr_results <- data.frame()
 es_results_ed <- data.frame()
 set.seed(1993)
-for(k in outcomevars){
+for(k in school_outcomes){
+  print(k)
+  this_panel <- panel %>%
+    mutate_at(vars(k, year), as.numeric)%>%
+    rename(this_outcome = k)%>%
+    filter(this_outcome >= 0)
+  
+  attgt <- att_gt(yname = "this_outcome",
+                  tname = "year",
+                  idname = "school_ID",
+                  gname = "first_exposed",
+                  control_group = "notyettreated",
+                  xformla = xformula,
+                  data = this_panel,
+                  clustervars = "GEOID10"
+  )
+  
+  ovr <- aggte(attgt, type = "simple", na.rm = T)
+  
+  ovr_results <- data.frame("outcome" = k, "ATT" = ovr$overall.att, "se" = ovr$overall.se, 
+                            "pre-treat" = mean((this_panel %>% filter( first_exposed > 0 & year < first_exposed))$this_outcome, na.rm = T), 
+                            "Nschools" = length(unique(this_panel$RCDS))
+  )%>%
+    rbind(ovr_results)
+  
+  es <- aggte(attgt, type = "dynamic", min_e = min_e, max_e = max_e, na.rm = T)
+  
+  es_results_ed <- data.frame("outcome" = k, "ATT" = es$att.egt, "e" = es$egt, "se" = es$se.egt, "crit" = es$crit.val.egt)%>%
+    rbind(es_results_ed)
+  
+}
+
+
+
+tree_outcomes <- c("gain", "loss", "canopy")
+
+for(k in tree_outcomes){
   print(k)
   this_panel <- panel %>%
     mutate_at(vars(k, year), as.numeric)%>%
@@ -102,7 +138,8 @@ for(k in outcomevars){
   ovr <- aggte(attgt, type = "simple", na.rm = T)
   
   ovr_results <- data.frame("outcome" = k, "ATT" = ovr$overall.att, "se" = ovr$overall.se, 
-                            "pre-treat" = mean((this_panel %>% filter( first_exposed > 0 & year < first_exposed))$this_outcome, na.rm = T), "Nschools" = length(unique(panel$RCDS))
+                            "pre-treat" = mean((this_panel %>% filter( first_exposed > 0 & year < first_exposed))$this_outcome, na.rm = T), 
+                            "Nschools" = length(unique(this_panel$RCDS))
   )%>%
     rbind(ovr_results)
   
@@ -227,6 +264,7 @@ categ <- c(" read school meets", " math school meets",
 tests <- as.vector(outer(as.vector(outer(test, groups, paste0)), as.vector(outer(grades, categ, paste0)), paste0))
 
 ovr_results_isat <- data.frame()
+set.seed(1993)
 for(k in tests){
   print(k)
   
@@ -298,7 +336,7 @@ duo_heights = c(4,3)
 
 png(paste0(fig_dir,"/schart_isat_lowinc_2mi.png"), width = 9, height = 5, units = "in", res = 500)
 par(oma=c(1,0,1,1))
-schart(spec_results_lowinc, ci=c(0.95), ylab="ATT (percentage of students\nmeeting given threshold)", labels = labels,
+schart(spec_results_lowinc, ci=c(0.95), ylab="ATT (percentage of students\nlanding in threshold)", labels = labels,
        col.dot=c(palette$dark,"grey","white", palette$blue),
        bg.dot=c(palette$dark,"white","white", palette$blue),
        col.est=c(palette$dark, palette$blue),
@@ -318,7 +356,7 @@ dev.off()
 
 png(paste0(fig_dir,"/schart_isat_nonlowinc_2mi.png"), width = 9, height = 5, units = "in", res = 500)
 par(oma=c(1,0,1,1))
-schart(spec_results_nonlowinc, ci=c(0.95), ylab="ATT (percentage of students\nmeeting given threshold)", labels = labels,
+schart(spec_results_nonlowinc, ci=c(0.95), ylab="ATT (percentage of students\nlanding in threshold)", labels = labels,
        col.dot=c(palette$dark,"grey","white", palette$blue),
        bg.dot=c(palette$dark,"white","white", palette$blue),
        col.est=c(palette$dark, palette$blue),

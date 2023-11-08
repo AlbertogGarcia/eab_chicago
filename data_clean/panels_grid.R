@@ -155,9 +155,11 @@ impervious_increase <- raster::raster(paste0(data_dir, "/tree_data/IS_change_yea
 #Emapr data
 canopy_filelist <- list.files(paste0(data_dir, 'tree_data/emapr/canopy_cover'), pattern = '.tif', full.names = TRUE)
 
-min_bands <- 2000 - 1990 + 1
+min_canopy_year = 2000
+min_bands <- min_canopy_year - 1990 + 1
 max_bands <- 2015 - 1990 + 1
 bands <- min_bands:max_bands
+
 
 read_emapr <- function(bands, file_list){
   
@@ -201,6 +203,26 @@ read_emapr <- function(bands, file_list){
 }
 
 canopy_raster_list <- read_emapr(bands, canopy_filelist)
+
+canopy_raster_2006 <- canopy_raster_list[[2006 - min_canopy_year + 1]] %>% 
+  mask(vect(extent_roi))
+
+metro_canopy_eab <- tm_shape(extent_roi) +
+  tm_fill("white")+
+  tm_shape(raster(canopy_raster_2006))+
+  tm_raster(pal = c("white", "#006D2C"))+
+  tm_shape(extent_roi) +
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(map_infestations)+
+  tm_symbols(col = "Year",
+             breaks = Breaks, labels = Labels,
+             palette = "plasma",
+             legend.hist = T,
+             size = 0.35)+
+  tm_layout(legend.outside = TRUE) +
+  tm_compass(type = "4star", size = 1, position = c("right", "top"))+
+  tm_scale_bar(breaks = c(0, 5, 10, 15, 20))
+metro_canopy_eab
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
