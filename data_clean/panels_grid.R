@@ -210,7 +210,8 @@ canopy_raster_2006 <- canopy_raster_list[[2006 - min_canopy_year + 1]] %>%
 metro_canopy_eab <- tm_shape(extent_roi) +
   tm_fill("white")+
   tm_shape(raster(canopy_raster_2006))+
-  tm_raster(pal = c("white", "#006D2C"))+
+  tm_raster(pal = "greens"#c("white", "#006D2C")
+            )+
   tm_shape(extent_roi) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(map_infestations)+
@@ -223,6 +224,7 @@ metro_canopy_eab <- tm_shape(extent_roi) +
   tm_compass(type = "4star", size = 1, position = c("right", "top"))+
   tm_scale_bar(breaks = c(0, 5, 10, 15, 20))
 metro_canopy_eab
+tmap_save(metro_canopy_eab, paste0(fig_dir, "/metro_canopy_infestations_map.png"), height = 5, width = 7)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
