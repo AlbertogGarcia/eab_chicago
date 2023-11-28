@@ -285,7 +285,7 @@ ggplot(canopy_results, aes(x = grid_size, y = ATT))+
   geom_hline(yintercept = 0, linetype = "dashed")+
   geom_point(size = 4, shape = 21, fill = palette$green, color = palette$dark)+
   theme_minimal()+
-  ylim(-0.5, 0.2) +
+  ylim(-0.55, 0.2) +
   xlab("Grid cell size (km)") + ggtitle("Canopy cover impacts of infestations across grid cell sizes")+
   scale_x_continuous(breaks = grid_files)
 ggsave(paste0(fig_dir, "/grid_sizes_schart.png"), width = 8, height = 5)

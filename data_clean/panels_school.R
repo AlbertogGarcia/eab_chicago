@@ -125,39 +125,78 @@ min_bands <- 2000 - 1990 + 1
 max_bands <- 2015 - 1990 + 1
 bands <- min_bands:max_bands
 
+# read_emapr <- function(bands, file_list){
+#   
+#   for(b in bands){
+#     
+#     for(i in 1:length(file_list)){
+#       # get file name 
+#       file_name <- file_list[i]
+#       
+#       # read in raster
+#       rast_i <- terra::rast(file_name, lyrs = b)
+#       
+#       if(i == 1){
+#         
+#         this_raster <- rast_i
+#         
+#       } else {
+#         
+#         # merge rasters
+#         this_raster <- terra::merge(this_raster, rast_i)
+#         
+#       }
+#     }
+#     
+#     this_raster <- terra::project(this_raster, terra::rast(paste0(data_dir, "tree_data/tree_loss_year.tif")))
+#     
+#     if(b == min(bands)){
+#       
+#       raster_list <- this_raster
+#       
+#     } else {
+#       
+#       # concatonate rasters
+#       raster_list <- c(raster_list, this_raster)
+#       
+#     }
+#     
+#   }
+#   
+#   return(raster_list)
+# }
+
+
 read_emapr <- function(bands, file_list){
   
   for(b in bands){
+    print(1990 + b)
     
+    r_list <- list()
     for(i in 1:length(file_list)){
-      # get file name 
+      
+      # get file name
       file_name <- file_list[i]
+      print(i)
       
       # read in raster
       rast_i <- terra::rast(file_name, lyrs = b)
       
-      if(i == 1){
-        
-        this_raster <- rast_i
-        
-      } else {
-        
-        # merge rasters
-        this_raster <- terra::merge(this_raster, rast_i)
-        
-      }
+      r_list[[length(r_list)+1]] = rast_i
+      
     }
     
-    this_raster <- terra::project(this_raster, terra::rast(paste0(data_dir, "tree_data/tree_loss_year.tif")))
+    merged_rast <- do.call(terra::merge, r_list) %>%
+      terra::project(extent_roi)
     
     if(b == min(bands)){
       
-      raster_list <- this_raster
+      raster_list <- merged_rast
       
     } else {
       
       # concatonate rasters
-      raster_list <- c(raster_list, this_raster)
+      raster_list <- c(raster_list, merged_rast)
       
     }
     

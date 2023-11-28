@@ -109,6 +109,7 @@ ACS.shp <- read_sf(paste0(data_dir,"administrative/tl_2010_17_tract/tl_2010_17_t
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 library(tmap)
+library(basemaps)
 
 roi_map <- tm_shape(illinois.shp) +
   tm_polygons(col = "lightgoldenrodyellow")+
@@ -137,6 +138,38 @@ metro_eab
 
 tmap_save(metro_eab, paste0(fig_dir, "/metro_infestations_map.png"), height = 5, width = 7)
 
+
+
+
+
+get_maptypes()
+bg <- basemaps::basemap_terra(ext=extent_roi, 
+                               map_service = "carto", map_type = "light_no_labels"
+                               )
+
+
+bg_labels <- basemaps::basemap_terra(ext=extent_roi, 
+                               map_service = "carto", map_type = "light_only_labels"
+)
+
+metro_street_eab <- tm_shape(bg) + tm_rgb() +
+  tm_shape(extent_roi) +
+  tm_polygons(alpha = 0, border.col = "black") +
+  tm_shape(bg_labels) + tm_rgb() +
+  tm_shape(map_infestations)+
+  tm_symbols(col = "Year",
+             breaks = Breaks, labels = Labels,
+             palette = "plasma",
+             legend.hist = F,
+             size = 0.35)+
+  tm_layout(legend.outside = TRUE) +
+  tm_compass(type = "4star", size = 1, position = c("right", "top"))+
+  tm_scale_bar(breaks = c(0, 5, 10, 15, 20))
+metro_street_eab
+
+tmap_save(metro_street_eab, paste0(fig_dir, "/metro1_infestations_map.png"), height = 5, width = 7)
+
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Raster data on tree loss/gain and canopy cover
 # SILVIS data
@@ -149,8 +182,54 @@ impervious_increase <- raster::raster(paste0(data_dir, "/tree_data/IS_change_yea
   raster::crop(illinois.shp)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#### Read in Emapr data
+#### Read in Emapr data fcn
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+read_emapr <- function(bands, file_list){
+  
+  for(b in bands){
+    print(1990 + b)
+    
+    r_list <- list()
+    for(i in 1:length(file_list)){
+      
+      # get file name
+      file_name <- file_list[i]
+      print(i)
+
+      # read in raster
+      rast_i <- terra::rast(file_name, lyrs = b)
+
+      r_list[[length(r_list)+1]] = rast_i
+
+    }
+    
+    merged_rast <- do.call(terra::merge, r_list) %>%
+      terra::project(extent_roi)
+    
+    if(b == min(bands)){
+      
+      raster_list <- merged_rast
+      
+    } else {
+      
+      # concatonate rasters
+      raster_list <- c(raster_list, merged_rast)
+      
+    }
+    
+  }
+  
+  return(raster_list)
+}
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+##### Canopy cover
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 #Emapr data
 canopy_filelist <- list.files(paste0(data_dir, 'tree_data/emapr/canopy_cover'), pattern = '.tif', full.names = TRUE)
@@ -160,58 +239,16 @@ min_bands <- min_canopy_year - 1990 + 1
 max_bands <- 2015 - 1990 + 1
 bands <- min_bands:max_bands
 
-
-read_emapr <- function(bands, file_list){
-  
-  for(b in bands){
-    
-    for(i in 1:length(file_list)){
-      # get file name 
-      file_name <- file_list[i]
-      
-      # read in raster
-      rast_i <- terra::rast(file_name, lyrs = b)
-      
-      if(i == 1){
-        
-        this_raster <- rast_i
-        
-      } else {
-        
-        # merge rasters
-        this_raster <- terra::merge(this_raster, rast_i)
-        
-      }
-    }
-    
-    this_raster <- terra::project(this_raster, terra::rast(paste0(data_dir, "tree_data/tree_loss_year.tif")))
-    
-    if(b == min(bands)){
-      
-      raster_list <- this_raster
-      
-    } else {
-      
-      # concatonate rasters
-      raster_list <- c(raster_list, this_raster)
-      
-    }
-    
-  }
-  
-  return(raster_list)
-}
-
 canopy_raster_list <- read_emapr(bands, canopy_filelist)
 
-canopy_raster_2006 <- canopy_raster_list[[2006 - min_canopy_year + 1]] %>% 
-  mask(vect(extent_roi))
+canopy_raster_2005 <- canopy_raster_list[[2005 - min_canopy_year]] %>%
+  terra::mask(roi)
 
 metro_canopy_eab <- tm_shape(extent_roi) +
   tm_fill("white")+
   tm_shape(raster(canopy_raster_2006))+
-  tm_raster(pal = "greens"#c("white", "#006D2C")
-            )+
+  tm_raster(pal = c("white", "#006D2C"),
+            title = "Canopy cover probability (2006)")+
   tm_shape(extent_roi) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(map_infestations)+
@@ -355,7 +392,7 @@ for(g in grid_sizes_km){
     slice_head()%>%
     mutate(#net_gain = gain - loss,
       treated = ifelse(year >= first_detected & year > 0, 1, 0),
-      e_time = ifelse(first_exposed > 0, year - first_exposed, 0)
+      e_time = ifelse(first_detected > 0, year - first_detected, 0)
       )
   
   library(rio)
