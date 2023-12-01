@@ -26,7 +26,7 @@ fig_dir <- here::here("figs")
 #### Grid unit of analysis
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-eab_panel <- readRDS(paste0(clean_data_dir, "/eab_panel_grid3km.rds"))%>%
+eab_panel <- readRDS(paste0(clean_data_dir, "/eab_panel_grid5km.rds"))%>%
   mutate_at(vars(place_first_detected), as.numeric)
 
 eab_cross <- eab_panel %>%
@@ -58,7 +58,7 @@ coeff <- 4
 
 ggplot(exposure_by_year, aes(x=first_exposed)) +
   geom_col( aes(y=n), fill=palette$blue, color = palette$dark_grey, alpha = 0.75, width = 0.75) + 
-  geom_line( aes(y= cum_exposed / coeff ), size=2, color=palette$dark) +
+  geom_line( aes(y= cum_exposed / coeff ), linewidth=2, color=palette$dark) +
   scale_y_continuous(
     # Features of the first axis
     name = "Newly exposed schools",
@@ -168,3 +168,41 @@ annotate_figure(ggarrange(p1, p2, p3, ncol=3, nrow=1, common.legend = FALSE,
 )
 ggsave(paste0(fig_dir, "/descriptive_schoolexposed_violin.png"), width = 10, height = 5)
 
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+### Detected vs. never-detected table
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+library(psych)
+
+describe_vars <- c(
+  "canopy",
+  "lowinc_pct", 
+  "ISAT_composite",
+  "all_tests",
+ "all_attendance rate school pct",
+ "chronic truants rate school pct",
+ "white_pct",
+ "black_pct",
+ "hispanic_pct",
+ "asian_pct"
+)
+
+summary <- data.frame()
+for(d in describe_vars){
+  
+  eab_school_describe <- eab_school_cross %>%
+    select(ever_detected, d)%>%
+    rename(this_var = d)%>%
+    mutate(this_var = as.numeric(this_var))
+  
+  ttest <- t.test(this_var~ever_detected, data=eab_school_describe)
+  
+  summary <- data.frame(
+    "variable" = d,
+    "detected_mean" = ttest$estimate[1],
+    "nvr_detected_mean" = ttest$estimate[2],
+    "p_val" = ttest$p.value
+  )%>%
+  mutate(p_val = ifelse(p_val < 0.0001, "< 0.0001", round(p_val, digits = 5))) %>%
+    rbind(summary)
+  
+}
