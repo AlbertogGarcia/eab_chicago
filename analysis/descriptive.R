@@ -16,7 +16,7 @@ palette <- list("white" = "#FAFAFA",
                 "dark_green" = "#496F5D",
                 "gold" = "#DAA520")
 
-results_dir <- here::here("results")
+results_dir <- here::here("analysis", "results")
 
 clean_data_dir <- here::here("cleaned")
 
@@ -39,7 +39,9 @@ eab_cross <- eab_panel %>%
 eab_panel_school <- readRDS(paste0(clean_data_dir, "/eab_panel_school2mi.rds"))
 
 eab_school_cross <- eab_panel_school %>%
-  filter(year == 2005)
+  filter(year == 2005)%>%
+  mutate(ever_detected = as.character(ifelse(first_exposed > 0, "Detected", "Never detected")))
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #### Expansion of ash borer exposure across schools
@@ -115,9 +117,6 @@ ggsave(paste0(fig_dir, "/descriptive_canopy_associations.png"), width = 10, heig
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #### Year of arrival vs. test score, low-income, canopy cover
 
-eab_school_cross <- eab_school_cross %>%
-  mutate(ever_detected = as.character(ifelse(first_exposed > 0, "Detected", "Never detected")))
-
 point_size = 3
 
 p1 <- ggplot(eab_school_cross, aes(x=ever_detected, color=ever_detected,
@@ -171,19 +170,18 @@ ggsave(paste0(fig_dir, "/descriptive_schoolexposed_violin.png"), width = 10, hei
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Detected vs. never-detected table
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-library(psych)
 
 describe_vars <- c(
-  "canopy",
-  "lowinc_pct", 
-  "ISAT_composite",
+  "hispanic_pct",
+  "asian_pct",
+  "black_pct",
+  "white_pct",
+  "lowinc_pct",
+  "chronic truants rate school pct",
+  "all_attendance rate school pct",
   "all_tests",
- "all_attendance rate school pct",
- "chronic truants rate school pct",
- "white_pct",
- "black_pct",
- "hispanic_pct",
- "asian_pct"
+  "ISAT_composite",
+  "canopy"
 )
 
 summary <- data.frame()
@@ -195,14 +193,45 @@ for(d in describe_vars){
     mutate(this_var = as.numeric(this_var))
   
   ttest <- t.test(this_var~ever_detected, data=eab_school_describe)
+  sd_detected <- sd(subset(eab_school_describe, ever_detected == "Detected")$this_var, na.rm = T)
+  sd_nvr_detected <- sd(subset(eab_school_describe, ever_detected != "Detected")$this_var, na.rm = T)
   
   summary <- data.frame(
     "variable" = d,
     "detected_mean" = ttest$estimate[1],
+    "detected_sd" = sd_detected,
     "nvr_detected_mean" = ttest$estimate[2],
+    "nvr_detected_sd" = sd_nvr_detected,
     "p_val" = ttest$p.value
   )%>%
   mutate(p_val = ifelse(p_val < 0.0001, "< 0.0001", round(p_val, digits = 5))) %>%
     rbind(summary)
   
 }
+
+named_vars <- c(
+  "canopy" = "Canopy",
+  "lowinc_pct" = "Pct. low-income",
+  "ISAT_composite" = "ISAT composite",
+  "all_tests" = "All tests",
+  "all_attendance rate school pct" = "Attendance rate",
+  "chronic truants rate school pct" = "Chronic truants rate",
+  "white_pct" = "Pct. white",
+  "black_pct" = "Pct. black",
+  "hispanic_pct" = "Pct. hispanic",
+  "asian_pct" = "Pct. asian"
+)
+summary <- summary %>% 
+  mutate(variable = named_vars[variable])
+
+kbl(summary, 
+    format = "latex",
+    row.names = F,
+    col.names = c("Variable", "Mean", "SD", "Mean", "SD", "P-value of t-test"), 
+    align = c("l", "c", "c", "c", "c", "c"), 
+    caption = "test caption", 
+    label = "descriptive-table",
+    booktabs = T)%>%
+  kable_styling(latex_options = c("hold_position"))%>%
+  add_header_above(c(" " = 1, "Detected" = 2, "Never detected" = 2, " " = 1))%>%
+  save_kable(paste0(results_dir, "/descriptive_table.tex"))
