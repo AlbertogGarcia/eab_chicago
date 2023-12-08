@@ -229,7 +229,7 @@ kbl(summary,
     row.names = F,
     col.names = c("Variable", "Mean", "SD", "Mean", "SD", "P-value of t-test"), 
     align = c("l", "c", "c", "c", "c", "c"), 
-    caption = "test caption", 
+    caption = "Descriptive comparison of schools in the vicinity (3.22km) of confirmed ash borer infestation at some point within the study period with those never exposed.", 
     label = "descriptive-table",
     booktabs = T)%>%
   kable_styling(latex_options = c("hold_position"))%>%
