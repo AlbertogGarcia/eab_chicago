@@ -212,8 +212,8 @@ for(d in describe_vars){
 named_vars <- c(
   "canopy" = "Canopy",
   "lowinc_pct" = "Pct. low-income",
-  "ISAT_composite" = "ISAT composite",
-  "all_tests" = "All tests",
+  "ISAT_composite" = "Pct. meet/exceed ISAT",
+  "all_tests" = "Pct. meet/exceed all tests",
   "all_attendance rate school pct" = "Attendance rate",
   "chronic truants rate school pct" = "Chronic truants rate",
   "white_pct" = "Pct. white",
@@ -229,7 +229,7 @@ kbl(summary,
     row.names = F,
     col.names = c("Variable", "Mean", "SD", "Mean", "SD", "P-value of t-test"), 
     align = c("l", "c", "c", "c", "c", "c"), 
-    caption = "Descriptive comparison of schools in the vicinity (3.22km) of confirmed ash borer infestation at some point within the study period with those never exposed.", 
+    caption = "Descriptive comparison of schools in the vicinity of confirmed ash borer infestation at some point within the study period versus those never exposed.", 
     label = "descriptive-table",
     booktabs = T)%>%
   kable_styling(latex_options = c("hold_position"))%>%
