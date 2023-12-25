@@ -198,28 +198,28 @@ for(d in describe_vars){
   
   summary <- data.frame(
     "variable" = d,
-    "detected_mean" = ttest$estimate[1],
-    "detected_sd" = sd_detected,
-    "nvr_detected_mean" = ttest$estimate[2],
-    "nvr_detected_sd" = sd_nvr_detected,
+    "detected_mean" = round(ttest$estimate[1], digits = 3),
+    "detected_sd" = round(sd_detected, digits = 3),
+    "nvr_detected_mean" = round(ttest$estimate[2], digits = 3),
+    "nvr_detected_sd" = round(sd_nvr_detected, digits = 3),
     "p_val" = ttest$p.value
   )%>%
-  mutate(p_val = ifelse(p_val < 0.0001, "< 0.0001", round(p_val, digits = 5))) %>%
+  mutate(p_val = ifelse(p_val < 0.001, "< 0.001", round(p_val, digits = 3))) %>%
     rbind(summary)
   
 }
 
 named_vars <- c(
-  "canopy" = "Canopy",
-  "lowinc_pct" = "Pct. low-income",
-  "ISAT_composite" = "Pct. meet/exceed ISAT",
-  "all_tests" = "Pct. meet/exceed all tests",
-  "all_attendance rate school pct" = "Attendance rate",
-  "chronic truants rate school pct" = "Chronic truants rate",
-  "white_pct" = "Pct. white",
-  "black_pct" = "Pct. black",
-  "hispanic_pct" = "Pct. hispanic",
-  "asian_pct" = "Pct. asian"
+  "canopy" = "Canopy (mean probability)",
+  "lowinc_pct" = "Low-income (%)",
+  "ISAT_composite" = "Meet/exceed ISAT (%)",
+  "all_tests" = "Meet/exceed all tests (%)",
+  "all_attendance rate school pct" = "Attendance rate (%)",
+  "chronic truants rate school pct" = "Chronic truants rate (%)",
+  "white_pct" = "White (%)",
+  "black_pct" = "Black (%)",
+  "hispanic_pct" = "Hispanic (%)",
+  "asian_pct" = "Asian (%)"
 )
 summary <- summary %>% 
   mutate(variable = named_vars[variable])
@@ -227,11 +227,12 @@ summary <- summary %>%
 kbl(summary, 
     format = "latex",
     row.names = F,
-    col.names = c("Variable", "Mean", "SD", "Mean", "SD", "P-value of t-test"), 
-    align = c("l", "c", "c", "c", "c", "c"), 
+    col.names = c("Variable", "Mean", "SD", "Mean", "SD", "t-test p-value"), 
+    align = c("l", "c", "c", "c", "c", "r"), 
     caption = "Descriptive comparison of schools in the vicinity of confirmed ash borer infestation at some point within the study period versus those never exposed.", 
     label = "descriptive-table",
     booktabs = T)%>%
   kable_styling(latex_options = c("hold_position"))%>%
   add_header_above(c(" " = 1, "Detected" = 2, "Never detected" = 2, " " = 1))%>%
   save_kable(paste0(results_dir, "/descriptive_table.tex"))
+

@@ -6,5 +6,6 @@
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # Define the path to the local path of your dropbox folder 
-data_dir <- 'C:/Users/garci/Dropbox/eab_chicago_data/'
+data_dir <- "C:\\Users\\AG2964\\Dropbox (Personal)\\eab_chicago_data\\"
+  #'C:/Users/garci/Dropbox/eab_chicago_data/'
 

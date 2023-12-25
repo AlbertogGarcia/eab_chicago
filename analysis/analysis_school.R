@@ -181,16 +181,16 @@ kbl(paper_results %>% dplyr::select(canopy, loss, gain),
   kable_styling(latex_options = c("hold_position"))%>% 
   kableExtra::save_kable(paste0(results_dir, "/school_results_tree_2mi.tex"))
 
-kbl(paper_results %>% dplyr::select(ISAT_composite, all_tests, all_attend, low_income_attend, enrollment),
+kbl(paper_results %>% dplyr::select(ISAT_composite, all_attend, low_income_attend, enrollment),
     booktabs = T,
     format = "latex",
     caption = "Difference-in-differences estimates of the impact of ash borer infestation on school-level education outcomes. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated schools in the control group.",
-    col.names = c("ISAT composite", "All tests", "Attendance rate", "Low-income attend.", "Enrollment"),
-    align = c("l", "c", "c", "c", "c", "c"),
+    col.names = c("ISAT composite", "Attendance rate", "Low-income attend.", "Enrollment"),
+    align = c("l", "c", "c", "c", "c"),
     label = "school-educ-table"
 )%>%
   kableExtra::row_spec(2, hline_after = TRUE)%>%
-  add_header_above(c(" " = 1, "Outcome" = 5))%>%
+  add_header_above(c(" " = 1, "Outcome" = 4))%>%
   footnote(general = "* p<0.1, ** p<0.05, *** p<0.01; standard errors clustered at census tract")%>%
   kable_styling(latex_options = c("hold_position"))%>% 
   kableExtra::save_kable(paste0(results_dir, "/school_results_educ_2mi.tex"))
