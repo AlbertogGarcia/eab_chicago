@@ -5,6 +5,7 @@ library(readxl)
 library(tidyverse)
 library(exactextractr)
 library(ggplot2)
+library(beepr)
 
 select <- dplyr::select
 
@@ -74,6 +75,8 @@ extent_roi <- illinois.shp %>%
 # ash density by county in chicago region
 ash_by_county <- read.csv(paste0(data_dir, "tree_data/ash_by_county.csv"))
 
+ash_density_predicted <- terra::rast(paste0(clean_data_dir, "/ash_density.tif"))
+
 # Geocoded confirmed EAB infestations
 eab_infestations <- read_sf(paste0(data_dir, "eeb_infestations/eeb_address_geocode.shp"))%>%
   dplyr::select(Date, City)%>%
@@ -120,52 +123,9 @@ impervious_increase <- raster::raster(paste0(data_dir, "tree_data/IS_change_year
 #Emapr data
 canopy_filelist <- list.files(paste0(data_dir, 'tree_data/emapr/canopy_cover'), pattern = '.tif', full.names = TRUE)
 
-biomass_filelist <- list.files(paste0(data_dir, 'tree_data/emapr/biomass'), pattern = '.tif', full.names = TRUE)
 min_bands <- 2000 - 1990 + 1
 max_bands <- 2015 - 1990 + 1
 bands <- min_bands:max_bands
-
-# read_emapr <- function(bands, file_list){
-#   
-#   for(b in bands){
-#     
-#     for(i in 1:length(file_list)){
-#       # get file name 
-#       file_name <- file_list[i]
-#       
-#       # read in raster
-#       rast_i <- terra::rast(file_name, lyrs = b)
-#       
-#       if(i == 1){
-#         
-#         this_raster <- rast_i
-#         
-#       } else {
-#         
-#         # merge rasters
-#         this_raster <- terra::merge(this_raster, rast_i)
-#         
-#       }
-#     }
-#     
-#     this_raster <- terra::project(this_raster, terra::rast(paste0(data_dir, "tree_data/tree_loss_year.tif")))
-#     
-#     if(b == min(bands)){
-#       
-#       raster_list <- this_raster
-#       
-#     } else {
-#       
-#       # concatonate rasters
-#       raster_list <- c(raster_list, this_raster)
-#       
-#     }
-#     
-#   }
-#   
-#   return(raster_list)
-# }
-
 
 read_emapr <- function(bands, file_list){
   
@@ -243,14 +203,15 @@ school_infestation$geometry <- NULL
 control_vars <- c("school - white pct", "school - black pct", "school - hispanic pct", "school - asian pct", "low-income school pct", "l.e.p. school pct"
                   , "all_attendance rate school pct",
                   "chronic truants rate school pct",
-                  "school total enrollment"
+                  "school total enrollment",
+                  "ISAT_composite"
 )
 
 reportcard_data <- readRDS(paste0(clean_data_dir, "/reportcard_data.rds"))%>%
   mutate(year = as.numeric(as.character(year)))
 
-minyear = 2000
-maxyear = 2005
+minyear = 2003
+maxyear = 2006
 for(i in 1:length(control_vars)){
   print(i)
   x <- control_vars[i]
@@ -259,131 +220,171 @@ for(i in 1:length(control_vars)){
     filter(between(year, minyear, maxyear))%>%
     group_by(RCDS)%>%
     mutate_at(vars(x), ~ mean(as.numeric(.), na.rm = T))%>%
-    slice_head()%>%
     select(RCDS, x) %>%
-    slice_head()
+    slice_head()%>%
+    ungroup
   
   names(df_temp) <- c(names(df_temp)[1], paste0("cov_", x))
   
   reportcard_data <- left_join(reportcard_data, df_temp, by = "RCDS")
+  
+  df_temp_trend <- reportcard_data %>%
+    filter(year == minyear | year == maxyear)%>%
+    mutate_at(vars(x), ~ as.numeric(.))%>%
+    select(x, year, RCDS)%>%
+    pivot_wider(names_from = "year", values_from = x)%>%
+    rename(a = 2, b = 3)%>%
+    mutate(x = a - b)%>%
+    select(RCDS, x) %>%
+    group_by(RCDS)%>%
+    slice_head()%>%
+    ungroup
+  
+  names(df_temp_trend) <- c(names(df_temp_trend)[1], paste0("trend_", x))
+  
+  reportcard_data <- left_join(reportcard_data, df_temp_trend, by = "RCDS")
   
 }
 
 covs_school <- paste0("cov_", seq(from = 1, to = length(control_vars), by = 1))
 
 
-
+beep(1)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-##### extract canopy cover data
+##### extract canopy cover data for different buffers around schools
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 library(exactextractr)
-min_year = 1995
-max_year = 2015
-year_list <- seq(from = min_year, to = max_year, by = 1)
-
-publicschool_buffer <- publicschool_loc %>%
-  st_crop(extent_roi) %>%
-  st_buffer(treatment_buffer)
-
-for(i in year_list){
-  
-  this_tree_gain <- tree_gain
-  this_tree_gain[this_tree_gain[] != i ] = 0
-  this_tree_gain[this_tree_gain[] == i ] = 1
-  
-  new <- exact_extract(this_tree_gain, publicschool_buffer, 'sum')
-  publicschool_buffer[ , ncol(publicschool_buffer) + 1] <- new      # Append new column
-  colnames(publicschool_buffer)[ncol(publicschool_buffer)] <- paste0("gain_", i)
-  
-  this_tree_loss <- tree_loss
-  this_tree_loss[this_tree_loss[] != i ] = 0
-  this_tree_loss[this_tree_loss[] == i ] = 1
-  
-  new <- exact_extract(this_tree_loss, publicschool_buffer, 'sum')
-  publicschool_buffer[ , ncol(publicschool_buffer) + 1] <- new      # Append new column
-  colnames(publicschool_buffer)[ncol(publicschool_buffer)] <- paste0("loss_", i)
-  
-}
-
-
-min_canopy_year = 1990 + min(bands) - 1
-
-for(i in 1:length(bands)){
-  
-  this_canopy_cover <- canopy_raster_list[[i]]
-  
-  new <- terra::extract(this_canopy_cover, publicschool_buffer, 'mean') %>% select(-ID)
-  publicschool_buffer[ , ncol(publicschool_buffer) + 1] <- new      # Append new column
-  
-  year <- i + min_canopy_year - 1
-  print(year)
-  
-  colnames(publicschool_buffer)[ncol(publicschool_buffer)] <- paste0("canopy_", year)
-  
-}
-
-extracted_data <- publicschool_buffer 
-  
-extracted_data$geometry = NULL
-
-
-max_canopy_year = min_canopy_year + length(bands) - 1
-
-
-canopy_panel <- extracted_data %>%
-  mutate(canopy_baseline = canopy_2006)%>%
-  pivot_longer(cols = paste0("gain_",min_year):paste0("canopy_",max_canopy_year),
-               names_to = "type_year", 
-               values_to = "total_change")%>%
-  separate(type_year, into = c("change_type", "year"), sep = "_")%>%
-  pivot_wider(names_from = "change_type", values_from = "total_change")%>%
-  mutate(year = as.numeric(year))%>%
-  filter(between(year, 2003, 2014))
-
-eab_panel <- school_infestation %>%
-  left_join(canopy_panel, by = c("RCDS", "RCD", "FacilityNa"))%>%
-  inner_join(reportcard_data, by = c("RCDS", "year"))%>%
-  group_by(RCDS, year)%>%
-  slice_head()%>%
-  ungroup %>%
-  group_by(RCDS)%>%
-  mutate(school_ID = cur_group_id())%>%
-  ungroup
-
-eab_panel_school <- eab_panel %>%
-  rename(white_pct = "school - white pct",
-         black_pct = "school - black pct",
-         hispanic_pct = "school - hispanic pct",
-         asian_pct = "school - asian pct",
-         lowinc_pct = "low-income school pct",
-         cov_white_pct = "cov_school - white pct",
-         cov_black_pct = "cov_school - black pct",
-         cov_hispanic_pct = "cov_school - hispanic pct",
-         cov_asian_pct = "cov_school - asian pct",
-         cov_lowinc_pct = "cov_low-income school pct",
-         cov_lep_pct = "cov_l.e.p. school pct",
-         cov_truants_pct = "cov_chronic truants rate school pct",
-         cov_all_attend = "cov_all_attendance rate school pct",
-         cov_enrollment = "cov_school total enrollment"
-  )%>%
-  mutate(low_income_attend = `low income_attendance rate school pct`,
-         all_attend = `all_attendance rate school pct`,
-         enrollment = `school total enrollment`,
-         net_gain = gain - loss,
-         treated = ifelse(first_exposed > 0 & year >= first_exposed, 1, 0))%>%
-  mutate_at(vars(school_ID, year, first_exposed,
-                 all_tests,
-                 ISAT_composite,
-                 low_income_attend,
-                 all_attend,
-                 white_pct, black_pct, hispanic_pct, asian_pct, lowinc_pct, enrollment,
-                 year, first_exposed
-  ),
-  as.numeric)%>%
-  mutate(e_time = ifelse(first_exposed > 0, year - first_exposed, 0))
-
-
 library(rio)
 
-export(eab_panel_school, paste0(clean_data_dir, "/eab_panel_school2mi.rds"))
+canopy_buffers <- c(0.25, 0.5, 1, 2, treatment_buffer/1000)
+
+for(canopy_buffer_km in canopy_buffers){
+  
+  canopy_buffer = canopy_buffer_km*1000
+  
+  min_year = 1995
+  max_year = 2015
+  year_list <- seq(from = min_year, to = max_year, by = 1)
+  
+  publicschool_buffer <- publicschool_loc %>%
+    st_crop(extent_roi) %>%
+    st_buffer(canopy_buffer)
+  
+  # add in predicted ash by grid
+  mean_ash <- terra::extract(ash_density_predicted, publicschool_buffer, 'mean') %>% select(-ID) %>% rename(ash_density_predicted = 1)
+  publicschool_buffer[ , ncol(publicschool_buffer) + 1] <- mean_ash  
+  
+  
+  for(i in year_list){
+    
+    this_tree_gain <- tree_gain
+    this_tree_gain[this_tree_gain[] != i ] = 0
+    this_tree_gain[this_tree_gain[] == i ] = 1
+    
+    new <- exact_extract(this_tree_gain, publicschool_buffer, 'sum')
+    publicschool_buffer[ , ncol(publicschool_buffer) + 1] <- new      # Append new column
+    colnames(publicschool_buffer)[ncol(publicschool_buffer)] <- paste0("gain_", i)
+    
+    this_tree_loss <- tree_loss
+    this_tree_loss[this_tree_loss[] != i ] = 0
+    this_tree_loss[this_tree_loss[] == i ] = 1
+    
+    new <- exact_extract(this_tree_loss, publicschool_buffer, 'sum')
+    publicschool_buffer[ , ncol(publicschool_buffer) + 1] <- new      # Append new column
+    colnames(publicschool_buffer)[ncol(publicschool_buffer)] <- paste0("loss_", i)
+    
+  }
+  
+  
+  min_canopy_year = 1990 + min(bands) - 1
+  
+  for(i in 1:length(bands)){
+    
+    this_canopy_cover <- canopy_raster_list[[i]]
+    
+    new <- terra::extract(this_canopy_cover, publicschool_buffer, 'mean') %>% select(-ID)
+    publicschool_buffer[ , ncol(publicschool_buffer) + 1] <- new      # Append new column
+    
+    year <- i + min_canopy_year - 1
+    print(year)
+    
+    colnames(publicschool_buffer)[ncol(publicschool_buffer)] <- paste0("canopy_", year)
+    
+  }
+  
+  extracted_data <- publicschool_buffer 
+  
+  extracted_data$geometry = NULL
+  
+  
+  max_canopy_year = min_canopy_year + length(bands) - 1
+  
+  
+  canopy_panel <- extracted_data %>%
+    mutate(canopy_05 = canopy_2005,
+           canopy_0600 = canopy_2006 - canopy_2000,
+           canopy_0602 = canopy_2006 - canopy_2002,
+           canopy_0604 = canopy_2006 - canopy_2004
+    )%>%
+    pivot_longer(cols = paste0("gain_",min_year):paste0("canopy_",max_canopy_year),
+                 names_to = "type_year", 
+                 values_to = "total_change")%>%
+    separate(type_year, into = c("change_type", "year"), sep = "_")%>%
+    pivot_wider(names_from = "change_type", values_from = "total_change")%>%
+    mutate(year = as.numeric(year))%>%
+    filter(between(year, 2003, 2014))
+  
+  eab_panel <- school_infestation %>%
+    left_join(canopy_panel, by = c("RCDS", "RCD", "FacilityNa"))%>%
+    inner_join(reportcard_data, by = c("RCDS", "year"))%>%
+    group_by(RCDS, year)%>%
+    slice_head()%>%
+    ungroup %>%
+    group_by(RCDS)%>%
+    mutate(school_ID = cur_group_id())%>%
+    ungroup
+  
+  eab_panel_school <- eab_panel %>%
+    rename(white_pct = "school - white pct",
+           black_pct = "school - black pct",
+           hispanic_pct = "school - hispanic pct",
+           asian_pct = "school - asian pct",
+           lowinc_pct = "low-income school pct",
+           cov_white_pct = "cov_school - white pct",
+           cov_black_pct = "cov_school - black pct",
+           cov_hispanic_pct = "cov_school - hispanic pct",
+           cov_asian_pct = "cov_school - asian pct",
+           cov_lowinc_pct = "cov_low-income school pct",
+           cov_lep_pct = "cov_l.e.p. school pct",
+           cov_truants_pct = "cov_chronic truants rate school pct",
+           cov_all_attend = "cov_all_attendance rate school pct",
+           cov_enrollment = "cov_school total enrollment"
+    )%>%
+    mutate(low_income_attend = `low income_attendance rate school pct`,
+           all_attend = `all_attendance rate school pct`,
+           enrollment = `school total enrollment`,
+           net_gain = gain - loss,
+           treated = ifelse(first_exposed > 0 & year >= first_exposed, 1, 0))%>%
+    mutate_at(vars(school_ID, year, first_exposed,
+                   all_tests,
+                   ISAT_composite,
+                   low_income_attend,
+                   all_attend,
+                   white_pct, black_pct, hispanic_pct, asian_pct, lowinc_pct, enrollment,
+                   year, first_exposed
+    ),
+    as.numeric)%>%
+    mutate(e_time = ifelse(first_exposed > 0, year - first_exposed, 0))
+  
+  if(canopy_buffer == treatment_buffer){
+    export(eab_panel_school, paste0(clean_data_dir, "/eab_panel_school2mi.rds"))
+  } else{
+    export(eab_panel_school, paste0(clean_data_dir, "/eab_panel_school", canopy_buffer_km, "km.rds"))
+    
+  }
+  
+  
+  
+}
+
+beep(2)

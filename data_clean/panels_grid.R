@@ -8,7 +8,8 @@ library(exactextractr)
 library(ggplot2)
 library(kableExtra)
 library(modelsummary)
-
+library(beepr)
+library(gstat)
 select <- dplyr::select
 
 clean_data_dir <- here::here("cleaned")
@@ -76,6 +77,8 @@ extent_roi <- illinois.shp %>%
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # ash density by county in chicago region
 ash_by_county <- read.csv(paste0(data_dir, "tree_data/ash_by_county.csv"))
+
+ash_density_predicted <- terra::rast(paste0(clean_data_dir, "/ash_density.tif"))
 
 # Geocoded confirmed EAB infestations
 eab_infestations <- read_sf(paste0(data_dir,"eeb_infestations/eeb_address_geocode.shp"))%>%
@@ -241,7 +244,7 @@ bands <- min_bands:max_bands
 
 canopy_raster_list <- read_emapr(bands, canopy_filelist)
 
-canopy_raster_2005 <- canopy_raster_list[[2005 - min_canopy_year]] %>%
+canopy_raster_2006 <- canopy_raster_list[[2006 - min_canopy_year]] %>%
   terra::mask(roi)
 
 metro_canopy_eab <- tm_shape(extent_roi) +
@@ -263,11 +266,12 @@ metro_canopy_eab <- tm_shape(extent_roi) +
 metro_canopy_eab
 tmap_save(metro_canopy_eab, paste0(fig_dir, "/metro_canopy_infestations_map.png"), height = 5, width = 7)
 
-
+beep(1)
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ##### Create grid
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 grid_sizes_km <- c(
+  0.25, 0.5, 0.75,
   seq(from = 1, to = 10, by = 1)
   )
 
@@ -325,6 +329,10 @@ for(g in grid_sizes_km){
                 breaks = c(0, Breaks), labels = Labels,
                 palette = "plasma")
   
+  # add in predicted ash by grid
+  mean_ash <- terra::extract(ash_density_predicted, eab_loss_data, 'mean') %>% select(-ID) %>% rename(ash_density_predicted = 1)
+  eab_loss_data[ , ncol(eab_loss_data) + 1] <- mean_ash  
+  
   #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   ##### extract canopy cover data
   #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -381,7 +389,11 @@ for(g in grid_sizes_km){
   extracted_data$geometry = NULL
   
   eab_panel <- extracted_data %>%
-    mutate(canopy_baseline = canopy_2002)%>%
+    mutate(canopy_05 = canopy_2005,
+           canopy_0600 = canopy_2006 - canopy_2000,
+           canopy_0602 = canopy_2006 - canopy_2002,
+           canopy_0604 = canopy_2006 - canopy_2004
+    )%>%
     pivot_longer(cols = paste0("gain_",min_year):paste0("canopy_",max_canopy_year),
                  names_to = "type_year", 
                  values_to = "total_change")%>%
@@ -400,3 +412,129 @@ for(g in grid_sizes_km){
   
 }
 
+beep(1)
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+### INTERPOLATED GRID
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+map <- extent_roi %>% st_sf()
+grid_detect <- terra::rast(map, nrows = 1000, ncols = 1000)
+xy <- terra::xyFromCell(grid_detect, 1:ncell(grid_detect))
+
+coop <- st_as_sf(as.data.frame(xy), coords = c("x", "y"),
+                 crs = st_crs(map))
+coop <- st_filter(coop, map)
+
+#qtm(coop)
+
+# Nearest neighbors
+res <- gstat(formula = Year ~ 1, locations = eab_infestations, nmax = 5,
+             set = list(idp = 0))
+
+resp <- predict(res, coop)
+resp$x <- st_coordinates(resp)[,1]
+resp$y <- st_coordinates(resp)[,2]
+resp$pred <- resp$var1.pred
+
+pred <- terra::rasterize(resp, grid_detect, field = "pred", fun = "mean")
+tm_shape(pred) + tm_raster(alpha = 0.6, palette = "viridis")
+
+g = 0.5
+grid_spacing = g*1000
+
+grid <- st_make_grid(extent_roi, square = T, cellsize = c(grid_spacing, grid_spacing), crs = my_crs) %>% # the grid, covering bounding box
+  st_sf() %>% #not really required, but makes the grid nicer to work with later
+  st_intersection(extent_roi)%>%
+  mutate(grid = row_number())
+
+grid_centroids <- st_centroid(grid)%>%
+  st_join(counties.shp)%>%
+  left_join(ash_by_county, by = c("NAME" = "County"))%>%
+  st_join(ACS.shp)
+grid_centroids$geometry <- NULL
+
+mean <- terra::extract(pred, grid, 'mean') %>% select(-ID) %>% rename(first_detected_mean = 1)
+grid[ , ncol(grid) + 1] <- mean  
+min <- terra::extract(pred, grid, 'min') %>% select(-ID)%>% rename(first_detected_min = 1)
+grid[ , ncol(grid) + 1] <- min   
+
+grid <- grid %>%
+  mutate(first_detected = floor(first_detected_mean))
+  
+eab_loss_data <- grid %>%
+  left_join(grid_centroids, by = "grid")%>%
+  select(grid, everything())
+
+
+min_year = 2000
+max_year = 2015
+year_list <- seq(from = min_year, to = max_year, by = 1)
+for(i in year_list){
+  
+  this_tree_gain <- tree_gain
+  this_tree_gain[this_tree_gain[] != i ] = 0
+  this_tree_gain[this_tree_gain[] == i ] = 1
+  
+  new <- exact_extract(this_tree_gain, eab_loss_data, 'sum')
+  eab_loss_data[ , ncol(eab_loss_data) + 1] <- new      # Append new column
+  colnames(eab_loss_data)[ncol(eab_loss_data)] <- paste0("gain_", i)
+  
+  this_tree_loss <- tree_loss
+  this_tree_loss[this_tree_loss[] != i ] = 0
+  this_tree_loss[this_tree_loss[] == i ] = 1
+  
+  new <- exact_extract(this_tree_loss, eab_loss_data, 'sum')
+  eab_loss_data[ , ncol(eab_loss_data) + 1] <- new      # Append new column
+  colnames(eab_loss_data)[ncol(eab_loss_data)] <- paste0("loss_", i)
+  
+}
+
+eab_data <- eab_loss_data
+
+
+min_canopy_year = 1990 + min(bands) - 1
+for(i in 1:length(bands)){
+  
+  # get year 
+  year <- i + min_canopy_year - 1
+  print(year)
+  # extract from canopy cover raster
+  this_canopy_cover <- canopy_raster_list[[i]]
+  
+  new <- terra::extract(this_canopy_cover, eab_data, 'mean') %>% select(-ID)
+  eab_data[ , ncol(eab_data) + 1] <- new      # Append new column
+  
+  colnames(eab_data)[ncol(eab_data)] <- paste0("canopy_", year)
+  
+}
+
+max_canopy_year = min_canopy_year + length(bands) - 1
+
+
+extracted_data <- eab_data
+
+extracted_data$geometry = NULL
+
+eab_panel <- extracted_data %>%
+  mutate(canopy_05 = canopy_2005,
+         canopy_0600 = canopy_2006 - canopy_2000,
+         canopy_0602 = canopy_2006 - canopy_2002,
+         canopy_0604 = canopy_2006 - canopy_2004
+         )%>%
+  pivot_longer(cols = paste0("gain_",min_year):paste0("canopy_",max_canopy_year),
+               names_to = "type_year", 
+               values_to = "total_change")%>%
+  separate(type_year, into = c("change_type", "year"), sep = "_")%>%
+  mutate_at(vars(year, first_detected, grid), as.numeric)%>%
+  pivot_wider(names_from = "change_type", values_from = "total_change")%>%
+  group_by(year, grid)%>%
+  slice_head()%>%
+  mutate(#net_gain = gain - loss,
+    treated = ifelse(year >= first_detected & year > 0, 1, 0),
+    e_time = ifelse(first_detected > 0, year - first_detected, 0)
+  )
+
+export(eab_loss_data, paste0(clean_data_dir, "/eab_panel_grid_interpolated_", g, "km.rds"))
+
+
+beep(2)

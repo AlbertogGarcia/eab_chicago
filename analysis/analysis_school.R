@@ -28,29 +28,28 @@ clean_data_dir <- here::here("cleaned")
 
 fig_dir <- here::here("figs")
 
-eab_panel_school <- readRDS(paste0(clean_data_dir, "/eab_panel_school2mi.rds"))%>%
-  mutate(gain = gain * 0.2223948433, # converting 900m^2 pixels into acres
-         loss = loss * 0.2223948433)
+eab_panel_school <- readRDS(paste0(clean_data_dir, "/eab_panel_school0.5km.rds"))%>%
+  mutate(gain = gain * 0.09, # converting 900m^2 pixels into hectares
+         loss = loss * 0.09)
 
-
-panel <- eab_panel_school 
-
-  panel <- eab_panel_school %>%
+panel <- eab_panel_school %>%
   mutate_at(vars(year, first_exposed), as.numeric) %>%
+  drop_na(ISAT_composite)%>%
   mutate(
     e_time = ifelse(first_exposed > 0, year - first_exposed, 0)
   )
+    
 
 
-pct_used <- 0.1
+pct_used <- 0.25
 
 ggplot(panel %>% filter(first_exposed > 0), aes(x = e_time))+
   geom_histogram(binwidth = 1, color = palette$dark, alpha = 0.25)+
   theme_classic()+xlab("Event time")+
   geom_hline(yintercept = max(table((panel %>% filter(first_exposed != 0))$e_time))*pct_used, linetype = "dashed")
 
-max_e = 6
-min_e = -8
+max_e = 7
+min_e = -10
 
 ggplot(panel %>% filter(first_exposed > 0) %>% mutate(used_dynamic = ifelse(between(e_time, min_e, max_e), "Event time used in event study", "Event time not used in event study"))
        , aes(x = e_time, fill = used_dynamic))+
@@ -61,65 +60,42 @@ ggplot(panel %>% filter(first_exposed > 0) %>% mutate(used_dynamic = ifelse(betw
 ggsave(path = fig_dir, filename = "event_time_histogram.png", width = 7, height = 5)
 
 
-treat_tests <- round(mean(subset(panel, year == 2005 & first_exposed > 0)$all_tests, na.rm = T)  , digits = 3)
 treat_isat <- round(mean(subset(panel, year < first_exposed & first_exposed > 0)$ISAT_composite, na.rm = T)  , digits = 3)
 treat_attend <- round(mean(subset(panel, year < first_exposed & first_exposed > 0)$all_attend, na.rm = T)  , digits = 3)
 treat_lowinc_attend <- round(mean(subset(panel, year < first_exposed & first_exposed > 0)$low_income_attend, na.rm = T)  , digits = 3)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+### Logit results
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+cov_names <- c("cov_white_pct", "cov_black_pct", "cov_hispanic_pct", "cov_asian_pct", "cov_lowinc_pct", "cov_lep_pct", "cov_enrollment"
+               , "cov_truants_pct"
+               , "cov_all_attend"
+               , "pct_trees_in_area"
+               , "canopy_05"
+               , "canopy_0600"
+               , "canopy_0604"
+)
+
+logit_df <- panel %>%
+  mutate(ever_treated = ifelse(first_exposed > 0, 1, 0))%>%
+  group_by(school_ID)%>%
+  slice_head()
+
+formula <- as.formula(paste("ever_treated ~ ", paste(cov_names, collapse = " + ")))
+
+test_logit <- glm(formula, data = logit_df, family = "binomial")
+summary(test_logit)
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Callaway and Sant'anna estimates
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-cov_names <- c("cov_white_pct", "cov_black_pct", "cov_hispanic_pct", "cov_asian_pct", "cov_lowinc_pct", "cov_lep_pct", "cov_enrollment"
-)
-
-xformula <- as.formula(paste("~ ", paste(cov_names, collapse = " + ")))
-
-school_outcomes <- c("low_income_attend", "all_attend", "all_tests", "ISAT_composite",
-                 "PSAE_composite",
-                 "enrollment" 
-)
+school_outcomes <- c("low_income_attend", "all_attend", "ISAT_composite", "enrollment")
 
 ovr_results <- data.frame()
 es_results_ed <- data.frame()
 set.seed(1993)
 for(k in school_outcomes){
-  print(k)
-  this_panel <- panel %>%
-    mutate_at(vars(k, year), as.numeric)%>%
-    rename(this_outcome = k)%>%
-    filter(this_outcome >= 0)
-  
-  attgt <- att_gt(yname = "this_outcome",
-                  tname = "year",
-                  idname = "school_ID",
-                  gname = "first_exposed",
-                  control_group = "notyettreated",
-                  xformla = xformula,
-                  data = this_panel,
-                  clustervars = "GEOID10"
-  )
-  
-  ovr <- aggte(attgt, type = "simple", na.rm = T)
-  
-  ovr_results <- data.frame("outcome" = k, "ATT" = ovr$overall.att, "se" = ovr$overall.se, 
-                            "pre-treat" = mean((this_panel %>% filter( first_exposed > 0 & year < first_exposed))$this_outcome, na.rm = T), 
-                            "Nschools" = length(unique(this_panel$RCDS))
-  )%>%
-    rbind(ovr_results)
-  
-  es <- aggte(attgt, type = "dynamic", min_e = min_e, max_e = max_e, na.rm = T)
-  
-  es_results_ed <- data.frame("outcome" = k, "ATT" = es$att.egt, "e" = es$egt, "se" = es$se.egt, "crit" = es$crit.val.egt)%>%
-    rbind(es_results_ed)
-  
-}
-
-
-
-tree_outcomes <- c("gain", "loss", "canopy")
-
-for(k in tree_outcomes){
   print(k)
   this_panel <- panel %>%
     mutate_at(vars(k, year), as.numeric)%>%
@@ -130,7 +106,8 @@ for(k in tree_outcomes){
                   idname = "school_ID",
                   gname = "first_exposed",
                   control_group = "notyettreated",
-                  xformla = xformula,
+                  base_period = "universal",
+                  xformla = as.formula(paste("~ ", paste(c("cov_white_pct", "cov_black_pct", "cov_hispanic_pct", "cov_asian_pct", "cov_lowinc_pct", "cov_lep_pct", "cov_enrollment", "cov_ISAT_composite", "trend_ISAT_composite", "`trend_low-income school pct`" , "`trend_l.e.p. school pct`", "pct_trees_in_area", "canopy_0604", "canopy_0600", "canopy_0602"), collapse = " + "))),
                   data = this_panel,
                   clustervars = "GEOID10"
   )
@@ -146,8 +123,46 @@ for(k in tree_outcomes){
   es <- aggte(attgt, type = "dynamic", min_e = min_e, max_e = max_e, na.rm = T)
   
   es_results_ed <- data.frame("outcome" = k, "ATT" = es$att.egt, "e" = es$egt, "se" = es$se.egt, "crit" = es$crit.val.egt)%>%
+    mutate(se = replace_na(se, 0))%>%
     rbind(es_results_ed)
   
+}
+
+tree_outcomes <- c("gain", "loss", "canopy")
+
+for(k in tree_outcomes){
+  print(k)
+  this_panel <- panel %>%
+    mutate_at(vars(k, year), as.numeric)%>%
+    rename(this_outcome = k)
+
+  attgt <- att_gt(yname = "this_outcome",
+                  tname = "year",
+                  idname = "school_ID",
+                  gname = "first_exposed",
+                  control_group = "notyettreated",
+                  base_period = "universal",
+                  xformla = as.formula(paste("~ ", paste(c("cov_white_pct", "cov_black_pct", "cov_hispanic_pct", "cov_asian_pct", "cov_lowinc_pct", "cov_lep_pct", "cov_enrollment"
+                                                  #         , "cov_ISAT_composite", "trend_ISAT_composite", "`trend_low-income school pct`" , "`trend_l.e.p. school pct`"
+                                                           , "pct_trees_in_area", "canopy_0600" , "canopy_0602"), collapse = " + "))),
+                  data = this_panel,
+                  clustervars = "GEOID10"
+  )
+
+  ovr <- aggte(attgt, type = "simple", na.rm = T)
+
+  ovr_results <- data.frame("outcome" = k, "ATT" = ovr$overall.att, "se" = ovr$overall.se,
+                            "pre-treat" = mean((this_panel %>% filter( first_exposed > 0 & year < first_exposed))$this_outcome, na.rm = T),
+                            "Nschools" = length(unique(this_panel$RCDS))
+  )%>%
+    rbind(ovr_results)
+
+  es <- aggte(attgt, type = "dynamic", min_e = min_e, max_e = max_e, na.rm = T)
+
+  es_results_ed <- data.frame("outcome" = k, "ATT" = es$att.egt, "e" = es$egt, "se" = es$se.egt, "crit" = es$crit.val.egt)%>%
+    mutate(se = replace_na(se, 0))%>%
+    rbind(es_results_ed)
+
 }
 
 paper_results <- ovr_results %>%
@@ -171,7 +186,7 @@ kbl(paper_results %>% dplyr::select(canopy, loss, gain),
     format = "latex",
     booktabs = T,
     caption = "Difference-in-differences estimates of the impact of ash borer infestation on tree cover outcomes within 3.22km (2 miles) of the school. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated schools in the control group.",
-    col.names = c("Canopy", "Loss (Acres/year)", "Gain (Acres/year)"),
+    col.names = c("Canopy", "Loss (Hectares/year)", "Gain (Hectares/year)"),
     align = c("l", "c", "c", "c"),
     label = "school-tree-table"
 )%>%
@@ -202,27 +217,13 @@ isat_plot <- ggplot(es_results_ed %>% filter(outcome == "ISAT_composite"),
   geom_ribbon(aes(ymin= ATT - crit*se, ymax=ATT + crit*se), fill = palette$light_grey, color = palette$light_grey, alpha=1)+
   geom_line() +
   geom_point(shape = 21, fill = palette$dark)+
-  geom_vline(xintercept = -0.5, linetype = "dashed")+
-  geom_hline(yintercept = 0, linetype = "dashed")+
+  geom_vline(xintercept = -1, linetype = "dashed", color = palette$red)+
+  geom_hline(yintercept = 0)+
   theme_classic()
 isat_plot
 
-isat_plot + ggtitle("ISAT impacts of ash borer infestation by event time")
 ggsave(path = fig_dir, filename = "es_school_isat_2mi.png", width = 7, height = 5)
 
-all_tests_plot <- ggplot(es_results_ed %>% filter(outcome == "all_tests"),
-                         aes(x = e, y = ATT)) +
-  ylab("All reported tests achievement")+ xlab("Years since infestation detection")+
-  geom_ribbon(aes(ymin= ATT - crit*se, ymax=ATT + crit*se), fill = palette$light_grey, color = palette$light_grey, alpha=1)+
-  geom_line() +
-  geom_point(shape = 21, fill = palette$dark)+
-  geom_vline(xintercept = -0.5, linetype = "dashed")+
-  geom_hline(yintercept = 0, linetype = "dashed")+
-  theme_classic()
-all_tests_plot
-
-all_tests_plot + ggtitle("All test impacts of ash borer infestation by event time")
-ggsave(path = fig_dir, filename = "es_school_all_tests_2mi.png", width = 7, height = 5)
 
 canopy_plot <- ggplot(es_results_ed %>% filter(outcome == "canopy"),
                       aes(x = e, y = ATT)) +
@@ -230,22 +231,16 @@ canopy_plot <- ggplot(es_results_ed %>% filter(outcome == "canopy"),
   geom_ribbon(aes(ymin= ATT - crit*se, ymax=ATT + crit*se), fill = palette$light_grey, color = palette$light_grey, alpha=1)+
   geom_line() +
   geom_point(shape = 21, fill = palette$dark)+
-  geom_vline(xintercept = -0.5, linetype = "dashed")+
-  geom_hline(yintercept = 0, linetype = "dashed")+
+  geom_vline(xintercept = -1, linetype = "dashed", color = palette$red)+
+  geom_hline(yintercept = 0)+
   theme_classic()
 canopy_plot
 
-canopy_plot + ggtitle("School vicinity canopy cover impacts of ash borer infestation by event time")
 ggsave(path = fig_dir, filename = "es_school_canopy_2mi.png", width = 7, height = 5)
 
-ggarrange(canopy_plot, isat_plot, ncol = 2, nrow = 1,
+ggarrange(isat_plot, canopy_plot, ncol = 2, nrow = 1,
           labels = c("A", "B"))
 ggsave(path = fig_dir, filename = "es_school_duo_2mi.png", width = 9, height = 3.5)
-
-
-ggarrange(canopy_plot, isat_plot, ncol = 1, nrow = 2,
-          labels = c("A", "B"))
-ggsave(path = fig_dir, filename = "es_school_duo_vert_2mi.png", width = 4, height = 10)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -255,7 +250,7 @@ ggsave(path = fig_dir, filename = "es_school_duo_vert_2mi.png", width = 4, heigh
 test <- c("ISAT_")
 groups <- c(
   "low income_", "non-low income_")
-grades <- c("gr3", "gr4", "gr5", "gr6", "gr7", "gr8")
+grades <- c("gr8", "gr7", "gr6", "gr5", "gr4", "gr3")
 categ <- c(" read school meets", " math school meets", 
            " read school academic warning", " math school academic warning",
            " read school below", " math school below", 
@@ -263,11 +258,19 @@ categ <- c(" read school meets", " math school meets",
 )
 tests <- as.vector(outer(as.vector(outer(test, groups, paste0)), as.vector(outer(grades, categ, paste0)), paste0))
 
+
+
 ovr_results_isat <- data.frame()
+
+plot_list_meets <- vector('list', 24)
+plot_list_below <- vector('list', 24)
+plot_list_warning <- vector('list', 24)
+plot_list_exceeds <- vector('list', 24)
+
 set.seed(1993)
 for(k in tests){
   print(k)
-  
+  # k = tests[31]
   grade = gsub('gr','', strsplit(strsplit(k, split = "_")[[1]][3], " ")[[1]][1])
   group = strsplit(k, split = "_")[[1]][2]
   subject = ifelse(grepl("math", k, fixed = TRUE), "math", "reading")
@@ -285,7 +288,8 @@ for(k in tests){
                   idname = "school_ID",
                   gname = "first_exposed",
                   control_group = "notyettreated",
-                  xformla = xformula,
+                  base_period = "universal",
+                  xformla = as.formula(paste("~ ", paste(c("cov_white_pct", "cov_black_pct", "cov_hispanic_pct", "cov_asian_pct", "cov_lowinc_pct", "cov_lep_pct", "cov_enrollment", "cov_ISAT_composite", "trend_ISAT_composite", "`trend_low-income school pct`" , "`trend_l.e.p. school pct`", "pct_trees_in_area", "canopy_0604", "canopy_0600", "canopy_0602"), collapse = " + "))),
                   data = this_panel,
                   clustervars = "GEOID10"
   )
@@ -297,7 +301,121 @@ for(k in tests){
   )%>%
     rbind(ovr_results_isat)
   
+  stars = ifelse(between(abs(ovr$overall.att/ovr$overall.se), 1.645, 1.96), "*",
+                 ifelse(between(abs(ovr$overall.att/ovr$overall.se), 1.96, 2.58), "**",
+                        ifelse(abs(ovr$overall.att/ovr$overall.se) >= 2.58, "***", "")
+                 )
+  )
+  
+  
+  es <- aggte(attgt, type = "dynamic", min_e = -6, na.rm = T)
+  
+  es_plot_df <- data.frame("outcome" = k, "ATT" = es$att.egt, "e" = es$egt, "se" = es$se.egt, "crit" = es$crit.val.egt)%>%
+    mutate(se = replace_na(se, 0),
+           plot_title = paste(subject, "- grade", grade, stars))
+  
+  
+  
+  if(grepl("non", k, fixed = TRUE)){
+    back_color = "grey85"
+  } else{
+    back_color = "lightblue"
+  }
+  
+  
+  
+  
+  this_plot <- ggplot(es_plot_df,
+                      aes(x = e, y = ATT)) +
+    #ylab("ISAT achievement")+ xlab("Years since infestation detection")+
+    geom_ribbon(aes(ymin= ATT - crit*se, ymax=ATT + crit*se), fill = palette$light_grey, color = palette$light_grey, alpha=1)+
+    geom_line() +
+    geom_point(shape = 21, fill = palette$dark)+
+    geom_vline(xintercept = -1, linetype = "dashed", color = palette$red)+
+    geom_hline(yintercept = 0)+
+    theme_classic()+
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank())
+  this_plot <- this_plot + facet_grid(. ~ plot_title) +
+    theme(strip.background = element_rect(fill=back_color),
+          strip.text = element_text(size=10, color="black"))
+  
+  if(grepl("meets", k, fixed = TRUE)){
+    meets_cats <- tests[grepl("meets", tests)]
+    pos <- match(k,meets_cats)
+    plot_list_meets[[pos]] <- this_plot
+    
+  } else if(grepl("exceeds", k, fixed = TRUE)){
+    exceeds_cats <- tests[grepl("exceeds", tests)]
+    pos <- match(k,exceeds_cats)
+    plot_list_exceeds[[pos]] <- this_plot
+    
+  } else if(grepl("below", k, fixed = TRUE)){
+    below_cats <- tests[grepl("below", tests)]
+    pos <- match(k,below_cats)
+    plot_list_below[[pos]] <- this_plot
+    
+  } else{
+    warning_cats <- tests[grepl("warning", tests)]
+    pos <- match(k,warning_cats)
+    plot_list_warning[[pos]] <- this_plot
+    
+  }
+  
+  
 }
+
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Event study plots
+library(ggpubr)
+library(grid)
+figure <- ggarrange(plotlist=plot_list_meets, 
+                    ncol = 4, nrow = 6,
+                    labels = NULL
+                    # , common.legend = TRUE,
+                    #  , legend = "top"
+)
+annotate_figure(figure, left = textGrob("ATT (pct. students at benchmark)", rot = 90, vjust = 1, gp = gpar(cex = 1.1)),
+                bottom = textGrob("Years since infestation", gp = gpar(cex = 1.1)))
+ggsave(filename = paste0(fig_dir, "/subplots_meets.png")
+       , width = 9, height = 12)
+
+figure <- ggarrange(plotlist=plot_list_exceeds, 
+                    ncol = 4, nrow = 6,
+                    labels = NULL
+                    # , common.legend = TRUE,
+                    #  , legend = "top"
+)
+annotate_figure(figure, left = textGrob("ATT (pct. students at benchmark)", rot = 90, vjust = 1, gp = gpar(cex = 1.1)),
+                bottom = textGrob("Years since infestation", gp = gpar(cex = 1.1)))
+ggsave(filename = paste0(fig_dir, "/subplots_exceeds.png")
+       , width = 9, height = 12)
+
+figure <- ggarrange(plotlist=plot_list_below, 
+                    ncol = 4, nrow = 6,
+                    labels = NULL
+                    # , common.legend = TRUE,
+                    #  , legend = "top"
+)
+annotate_figure(figure, left = textGrob("ATT (pct. students at benchmark)", rot = 90, vjust = 1, gp = gpar(cex = 1.1)),
+                bottom = textGrob("Years since infestation", gp = gpar(cex = 1.1)))
+ggsave(filename = paste0(fig_dir, "/subplots_below.png")
+       , width = 9, height = 12)
+
+figure <- ggarrange(plotlist=plot_list_warning, 
+                    ncol = 4, nrow = 6,
+                    labels = NULL
+                    # , common.legend = TRUE,
+                    #  , legend = "top"
+)
+annotate_figure(figure, left = textGrob("ATT (pct. students at benchmark)", rot = 90, vjust = 1, gp = gpar(cex = 1.1)),
+                bottom = textGrob("Years since infestation", gp = gpar(cex = 1.1)))
+ggsave(filename = paste0(fig_dir, "/subplots_warning.png")
+       , width = 9, height = 12)
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Specification charts
 
 spec_results_lowinc <- ovr_results_isat %>%
   filter(group == "low income") %>%
@@ -326,21 +444,19 @@ spec_results_nonlowinc <- ovr_results_isat %>%
 nonlowinc_sig <- which(abs(spec_results_nonlowinc$ATT) >= abs(1.96*spec_results_nonlowinc$se))
 
 labels <- list(
-  #     "Benchmark" = c("academic warning", "below", "meets", "exceeds"),
-  #      "Group" = c("Non low-income", "Low-income"),
   "Subject" = c("Math", "Reading"),
-  "Grade" = c("8th", "7th","6th", "5th", "4th", "3rd")
+  "Grade" = c("3rd", "4th", "5th","6th", "7th", "8th")
 )
 
-duo_heights = c(4,3)
+duo_heights = c(5,4)
 
-png(paste0(fig_dir,"/schart_isat_lowinc_2mi.png"), width = 9, height = 5, units = "in", res = 500)
+png(paste0(fig_dir,"/schart_isat_lowinc_2mi.png"), width = 9, height = 6, units = "in", res = 500)
 par(oma=c(1,0,1,1))
-schart(spec_results_lowinc, ci=c(0.95), ylab="ATT (percentage of students\nlanding in threshold)", labels = labels,
+schart(spec_results_lowinc, ci=c(0.9, 0.95), ylab="", labels = labels,
        col.dot=c(palette$dark,"grey","white", palette$blue),
        bg.dot=c(palette$dark,"white","white", palette$blue),
        col.est=c(palette$dark, palette$blue),
-       n = 12, heights=duo_heights, highlight = lowinc_sig
+       n = 12, heights=duo_heights#, highlight = lowinc_sig
 ) 
 abline(v=13)
 abline(v=26)
@@ -354,13 +470,13 @@ legend(x=1, y=-5, col = palette$blue, legend = "p < 0.05", seg.len=0.65, inset =
 dev.off()
 
 
-png(paste0(fig_dir,"/schart_isat_nonlowinc_2mi.png"), width = 9, height = 5, units = "in", res = 500)
+png(paste0(fig_dir,"/schart_isat_nonlowinc_2mi.png"), width = 9, height = 6, units = "in", res = 500)
 par(oma=c(1,0,1,1))
-schart(spec_results_nonlowinc, ci=c(0.95), ylab="ATT (percentage of students\nlanding in threshold)", labels = labels,
+schart(spec_results_nonlowinc, ci=c(0.9, 0.95), ylab="", labels = labels,
        col.dot=c(palette$dark,"grey","white", palette$blue),
        bg.dot=c(palette$dark,"white","white", palette$blue),
        col.est=c(palette$dark, palette$blue),
-       n=12, heights=duo_heights, highlight = nonlowinc_sig
+       n=12, heights=duo_heights#, highlight = nonlowinc_sig
 ) 
 abline(v=13)
 abline(v=26)
@@ -377,9 +493,22 @@ plot1 <- readPNG(paste0(fig_dir,'/schart_isat_nonlowinc_2mi.png'))
 plot2 <- readPNG(paste0(fig_dir,'/schart_isat_lowinc_2mi.png'))
 
 
-ggarrange(rasterGrob(plot1),rasterGrob(plot2), 
+schart_duo <- ggarrange(rasterGrob(plot1),rasterGrob(plot2), 
           nrow= 2, ncol = 1,
           labels = c("A", "B"))
+
+annotate_figure(schart_duo, 
+                top = text_grob("Non-low-income student impacts", 
+                                            size = 7, color = "black"),
+                bottom = text_grob("Low-income student impacts", 
+                                size = 7, color = "black", vjust = -33.5)
+                )
+
+annotate_figure(schart_duo, top = text_grob("Non-low-income vs. low-income student impacts",
+                                      color = "black", size = 7.5))
+
+
 ggsave(paste0(fig_dir,'/schart_duo_2mi.png')
        , width = 5, height = 5
 )
+
