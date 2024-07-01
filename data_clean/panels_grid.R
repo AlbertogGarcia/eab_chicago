@@ -146,20 +146,27 @@ tmap_save(metro_eab, paste0(fig_dir, "/metro_infestations_map.png"), height = 5,
 
 
 get_maptypes()
-bg <- basemaps::basemap_terra(ext=extent_roi, 
+
+extent_roi_webmerc <- extent_roi %>%
+  st_transform(crs = 3857)
+
+map_infestations_webmerc<- map_infestations %>%
+  st_transform(crs = 3857)
+
+bg <- basemaps::basemap_terra(ext=extent_roi_webmerc, 
                                map_service = "carto", map_type = "light_no_labels"
                                )
 
 
-bg_labels <- basemaps::basemap_terra(ext=extent_roi, 
+bg_labels <- basemaps::basemap_terra(ext=extent_roi_webmerc, 
                                map_service = "carto", map_type = "light_only_labels"
 )
 
 metro_street_eab <- tm_shape(bg) + tm_rgb() +
-  tm_shape(extent_roi) +
+  tm_shape(extent_roi_webmerc) +
   tm_polygons(alpha = 0, border.col = "black") +
   tm_shape(bg_labels) + tm_rgb() +
-  tm_shape(map_infestations)+
+  tm_shape(map_infestations_webmerc)+
   tm_symbols(col = "Year",
              breaks = Breaks, labels = Labels,
              palette = "plasma",
@@ -437,9 +444,23 @@ resp$y <- st_coordinates(resp)[,2]
 resp$pred <- resp$var1.pred
 
 pred <- terra::rasterize(resp, grid_detect, field = "pred", fun = "mean")
-tm_shape(pred) + tm_raster(alpha = 0.6, palette = "viridis")
 
-g = 0.5
+interpolated_map <- tm_shape(pred) + 
+  tm_raster(alpha = 0.65, palette = "viridis",
+            title = ' ', 
+            labels = as.character(seq(from = 2006, to = 2015, by = 1)),
+            breaks = seq(from = 2006, to = 2015, by = 1)
+            )+
+  tm_layout(legend.position = c("right", "top"), 
+                       #title= 'Arrival of ash borer', 
+                       #title.position = c('right', 'top')
+            )
+interpolated_map
+
+tmap_save(interpolated_map, paste0(fig_dir, "/interpolated_infestations_map.png"), height = 6, width = 9)
+
+
+g = 1
 grid_spacing = g*1000
 
 grid <- st_make_grid(extent_roi, square = T, cellsize = c(grid_spacing, grid_spacing), crs = my_crs) %>% # the grid, covering bounding box
@@ -459,35 +480,13 @@ min <- terra::extract(pred, grid, 'min') %>% select(-ID)%>% rename(first_detecte
 grid[ , ncol(grid) + 1] <- min   
 
 grid <- grid %>%
-  mutate(first_detected = floor(first_detected_mean))
+  mutate(first_detected = floor(first_detected_mean),
+         first_detected_min = floor(first_detected_min))
   
 eab_loss_data <- grid %>%
   left_join(grid_centroids, by = "grid")%>%
   select(grid, everything())
 
-
-min_year = 2000
-max_year = 2015
-year_list <- seq(from = min_year, to = max_year, by = 1)
-for(i in year_list){
-  
-  this_tree_gain <- tree_gain
-  this_tree_gain[this_tree_gain[] != i ] = 0
-  this_tree_gain[this_tree_gain[] == i ] = 1
-  
-  new <- exact_extract(this_tree_gain, eab_loss_data, 'sum')
-  eab_loss_data[ , ncol(eab_loss_data) + 1] <- new      # Append new column
-  colnames(eab_loss_data)[ncol(eab_loss_data)] <- paste0("gain_", i)
-  
-  this_tree_loss <- tree_loss
-  this_tree_loss[this_tree_loss[] != i ] = 0
-  this_tree_loss[this_tree_loss[] == i ] = 1
-  
-  new <- exact_extract(this_tree_loss, eab_loss_data, 'sum')
-  eab_loss_data[ , ncol(eab_loss_data) + 1] <- new      # Append new column
-  colnames(eab_loss_data)[ncol(eab_loss_data)] <- paste0("loss_", i)
-  
-}
 
 eab_data <- eab_loss_data
 
@@ -521,20 +520,19 @@ eab_panel <- extracted_data %>%
          canopy_0602 = canopy_2006 - canopy_2002,
          canopy_0604 = canopy_2006 - canopy_2004
          )%>%
-  pivot_longer(cols = paste0("gain_",min_year):paste0("canopy_",max_canopy_year),
+  pivot_longer(cols = paste0("canopy_",min_canopy_year):paste0("canopy_",max_canopy_year),
                names_to = "type_year", 
                values_to = "total_change")%>%
   separate(type_year, into = c("change_type", "year"), sep = "_")%>%
-  mutate_at(vars(year, first_detected, grid), as.numeric)%>%
+  mutate_at(vars(year, first_detected, first_detected_min, grid), as.numeric)%>%
   pivot_wider(names_from = "change_type", values_from = "total_change")%>%
   group_by(year, grid)%>%
   slice_head()%>%
-  mutate(#net_gain = gain - loss,
-    treated = ifelse(year >= first_detected & year > 0, 1, 0),
+  mutate(treated = ifelse(year >= first_detected & year > 0, 1, 0),
     e_time = ifelse(first_detected > 0, year - first_detected, 0)
   )
 
-export(eab_loss_data, paste0(clean_data_dir, "/eab_panel_grid_interpolated_", g, "km.rds"))
+export(eab_panel, paste0(clean_data_dir, "/eab_panel_grid_interpolated_", g, "km.rds"))
 
 
 beep(2)

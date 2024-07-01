@@ -28,7 +28,7 @@ clean_data_dir <- here::here("cleaned")
 
 fig_dir <- here::here("figs")
 
-eab_panel_school <- readRDS(paste0(clean_data_dir, "/eab_panel_school0.5km.rds"))%>%
+eab_panel_school <- readRDS(paste0(clean_data_dir, "/eab_panel_school1km.rds"))%>%
   mutate(gain = gain * 0.09, # converting 900m^2 pixels into hectares
          loss = loss * 0.09)
 
@@ -48,21 +48,20 @@ ggplot(panel %>% filter(first_exposed > 0), aes(x = e_time))+
   theme_classic()+xlab("Event time")+
   geom_hline(yintercept = max(table((panel %>% filter(first_exposed != 0))$e_time))*pct_used, linetype = "dashed")
 
-max_e = 7
-min_e = -10
-
-ggplot(panel %>% filter(first_exposed > 0) %>% mutate(used_dynamic = ifelse(between(e_time, min_e, max_e), "Event time used in event study", "Event time not used in event study"))
-       , aes(x = e_time, fill = used_dynamic))+
-  geom_histogram(binwidth = 1, color = palette$dark, alpha = 0.75)+
-  scale_fill_manual(values = c(palette$red, palette$light_grey))+
-  theme_classic()+ theme(legend.title = element_blank())+xlab("Event time")+
-  geom_hline(yintercept = max(table((panel %>% filter(first_exposed != 0))$e_time))*pct_used, linetype = "dashed")
-ggsave(path = fig_dir, filename = "event_time_histogram.png", width = 7, height = 5)
 
 
-treat_isat <- round(mean(subset(panel, year < first_exposed & first_exposed > 0)$ISAT_composite, na.rm = T)  , digits = 3)
-treat_attend <- round(mean(subset(panel, year < first_exposed & first_exposed > 0)$all_attend, na.rm = T)  , digits = 3)
-treat_lowinc_attend <- round(mean(subset(panel, year < first_exposed & first_exposed > 0)$low_income_attend, na.rm = T)  , digits = 3)
+# ggplot(panel %>% filter(first_exposed > 0) %>% mutate(used_dynamic = ifelse(between(e_time, min_e, max_e), "Event time used in event study", "Event time not used in event study"))
+#        , aes(x = e_time, fill = used_dynamic))+
+#   geom_histogram(binwidth = 1, color = palette$dark, alpha = 0.75)+
+#   scale_fill_manual(values = c(palette$red, palette$light_grey))+
+#   theme_classic()+ theme(legend.title = element_blank())+xlab("Event time")+
+#   geom_hline(yintercept = max(table((panel %>% filter(first_exposed != 0))$e_time))*pct_used, linetype = "dashed")
+# ggsave(path = fig_dir, filename = "event_time_histogram.png", width = 7, height = 5)
+
+
+treat_isat <- round(mean(subset(panel, year == first_exposed - 1 & first_exposed > 0)$ISAT_composite, na.rm = T)  , digits = 3)
+treat_attend <- round(mean(subset(panel, year == first_exposed - 1 & first_exposed > 0)$all_attend, na.rm = T)  , digits = 3)
+treat_lowinc_attend <- round(mean(subset(panel, year == first_exposed - 1 & first_exposed > 0)$low_income_attend, na.rm = T)  , digits = 3)
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ### Logit results
@@ -92,6 +91,8 @@ summary(test_logit)
 
 school_outcomes <- c("low_income_attend", "all_attend", "ISAT_composite", "enrollment")
 
+max_e = 10
+min_e = -15
 ovr_results <- data.frame()
 es_results_ed <- data.frame()
 set.seed(1993)
@@ -115,7 +116,7 @@ for(k in school_outcomes){
   ovr <- aggte(attgt, type = "simple", na.rm = T)
   
   ovr_results <- data.frame("outcome" = k, "ATT" = ovr$overall.att, "se" = ovr$overall.se, 
-                            "pre-treat" = mean((this_panel %>% filter( first_exposed > 0 & year < first_exposed))$this_outcome, na.rm = T), 
+                            "pre-treat" = mean((this_panel %>% filter( year == first_exposed - 1 & first_exposed > 0))$this_outcome, na.rm = T), 
                             "Nschools" = length(unique(this_panel$RCDS))
   )%>%
     rbind(ovr_results)
@@ -134,7 +135,8 @@ for(k in tree_outcomes){
   print(k)
   this_panel <- panel %>%
     mutate_at(vars(k, year), as.numeric)%>%
-    rename(this_outcome = k)
+    rename(this_outcome = k) %>%
+    filter(year <= 2014)
 
   attgt <- att_gt(yname = "this_outcome",
                   tname = "year",
@@ -142,9 +144,7 @@ for(k in tree_outcomes){
                   gname = "first_exposed",
                   control_group = "notyettreated",
                   base_period = "universal",
-                  xformla = as.formula(paste("~ ", paste(c("cov_white_pct", "cov_black_pct", "cov_hispanic_pct", "cov_asian_pct", "cov_lowinc_pct", "cov_lep_pct", "cov_enrollment"
-                                                  #         , "cov_ISAT_composite", "trend_ISAT_composite", "`trend_low-income school pct`" , "`trend_l.e.p. school pct`"
-                                                           , "pct_trees_in_area", "canopy_0600" , "canopy_0602"), collapse = " + "))),
+                  xformla = as.formula(paste("~ ", paste(c("cov_white_pct", "cov_black_pct", "cov_hispanic_pct", "cov_asian_pct", "cov_lowinc_pct", "cov_lep_pct", "cov_enrollment", "cov_ISAT_composite", "trend_ISAT_composite", "`trend_low-income school pct`" , "`trend_l.e.p. school pct`", "pct_trees_in_area", "canopy_0600" , "canopy_0602"), collapse = " + "))),
                   data = this_panel,
                   clustervars = "GEOID10"
   )
@@ -152,7 +152,7 @@ for(k in tree_outcomes){
   ovr <- aggte(attgt, type = "simple", na.rm = T)
 
   ovr_results <- data.frame("outcome" = k, "ATT" = ovr$overall.att, "se" = ovr$overall.se,
-                            "pre-treat" = mean((this_panel %>% filter( first_exposed > 0 & year < first_exposed))$this_outcome, na.rm = T),
+                            "pre-treat" = mean((this_panel %>% filter( first_exposed > 0 & year == first_exposed - 1))$this_outcome, na.rm = T),
                             "Nschools" = length(unique(this_panel$RCDS))
   )%>%
     rbind(ovr_results)
@@ -180,25 +180,25 @@ paper_results <- ovr_results %>%
   t() %>%
   row_to_names(row_number = 1) %>%
   as.data.frame()
-row.names(paper_results) <- c("ATT", " ", "Pre-treat mean", "N schools")
+row.names(paper_results) <- c("ATT", "(se)", "Pre-treat mean", "N schools")
 
 kbl(paper_results %>% dplyr::select(canopy, loss, gain),
-    format = "latex",
+  #  format = "latex",
     booktabs = T,
     caption = "Difference-in-differences estimates of the impact of ash borer infestation on tree cover outcomes within 3.22km (2 miles) of the school. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated schools in the control group.",
-    col.names = c("Canopy", "Loss (Hectares/year)", "Gain (Hectares/year)"),
+    col.names = c("Canopy (mean probability)", "Loss (Hectares/year)", "Gain (Hectares/year)"),
     align = c("l", "c", "c", "c"),
     label = "school-tree-table"
 )%>%
   kableExtra::row_spec(2, hline_after = TRUE)%>%
   add_header_above(c(" " = 1, "Outcome" = 3))%>%
   footnote(general = "* p<0.1, ** p<0.05, *** p<0.01; standard errors clustered at census tract")%>%
-  kable_styling(latex_options = c("hold_position"))%>% 
-  kableExtra::save_kable(paste0(results_dir, "/school_results_tree_2mi.tex"))
+ # kable_styling(latex_options = c("hold_position"))%>% 
+  kableExtra::save_kable(paste0(results_dir, "/school_results_tree_2mi.html"))
 
 kbl(paper_results %>% dplyr::select(ISAT_composite, all_attend, low_income_attend, enrollment),
     booktabs = T,
-    format = "latex",
+  #  format = "latex",
     caption = "Difference-in-differences estimates of the impact of ash borer infestation on school-level education outcomes. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated schools in the control group.",
     col.names = c("ISAT composite", "Attendance rate", "Low-income attend.", "Enrollment"),
     align = c("l", "c", "c", "c", "c"),
@@ -207,13 +207,27 @@ kbl(paper_results %>% dplyr::select(ISAT_composite, all_attend, low_income_atten
   kableExtra::row_spec(2, hline_after = TRUE)%>%
   add_header_above(c(" " = 1, "Outcome" = 4))%>%
   footnote(general = "* p<0.1, ** p<0.05, *** p<0.01; standard errors clustered at census tract")%>%
-  kable_styling(latex_options = c("hold_position"))%>% 
-  kableExtra::save_kable(paste0(results_dir, "/school_results_educ_2mi.tex"))
+ # kable_styling(latex_options = c("hold_position"))%>% 
+  kableExtra::save_kable(paste0(results_dir, "/school_results_educ_2mi.html"))
+
+kbl(paper_results %>% dplyr::select(ISAT_composite, all_attend, low_income_attend, enrollment, canopy, loss, gain),
+    booktabs = T,
+    #  format = "latex",
+    caption = "Difference-in-differences estimates of the impact of ash borer infestation on school-level outcomes. All estimates are based on the Callway and Sant'anna (2020) estimator and use both not-yet-treated and never-treated schools in the control group.",
+    col.names = c("ISAT composite", "Attendance rate", "Low-income attend.", "Enrollment", "Canopy (mean probability)", "Loss (Hectares/year)", "Gain (Hectares/year)"),
+    align = c("l", "c", "c", "c", "c", "c", "c", "c"),
+    label = "school-table"
+)%>%
+  kableExtra::row_spec(2, hline_after = TRUE)%>%
+  add_header_above(c(" " = 1, "Outcome" = 7))%>%
+  footnote(general = "* p<0.1, ** p<0.05, *** p<0.01; standard errors clustered at census tract")%>%
+  # kable_styling(latex_options = c("hold_position"))%>% 
+  kableExtra::save_kable(paste0(results_dir, "/school_results_2mi.html"))
 
 
 isat_plot <- ggplot(es_results_ed %>% filter(outcome == "ISAT_composite"),
                     aes(x = e, y = ATT)) +
-  ylab("ISAT achievement")+ xlab("Years since infestation detection")+
+  ylab("% students meet or exceed\nISAT cutoff (composite)")+ xlab("Years since infestation detection")+
   geom_ribbon(aes(ymin= ATT - crit*se, ymax=ATT + crit*se), fill = palette$light_grey, color = palette$light_grey, alpha=1)+
   geom_line() +
   geom_point(shape = 21, fill = palette$dark)+
@@ -222,25 +236,7 @@ isat_plot <- ggplot(es_results_ed %>% filter(outcome == "ISAT_composite"),
   theme_classic()
 isat_plot
 
-ggsave(path = fig_dir, filename = "es_school_isat_2mi.png", width = 7, height = 5)
-
-
-canopy_plot <- ggplot(es_results_ed %>% filter(outcome == "canopy"),
-                      aes(x = e, y = ATT)) +
-  ylab("Mean canopy cover probability")+ xlab("Years since infestation detection")+
-  geom_ribbon(aes(ymin= ATT - crit*se, ymax=ATT + crit*se), fill = palette$light_grey, color = palette$light_grey, alpha=1)+
-  geom_line() +
-  geom_point(shape = 21, fill = palette$dark)+
-  geom_vline(xintercept = -1, linetype = "dashed", color = palette$red)+
-  geom_hline(yintercept = 0)+
-  theme_classic()
-canopy_plot
-
-ggsave(path = fig_dir, filename = "es_school_canopy_2mi.png", width = 7, height = 5)
-
-ggarrange(isat_plot, canopy_plot, ncol = 2, nrow = 1,
-          labels = c("A", "B"))
-ggsave(path = fig_dir, filename = "es_school_duo_2mi.png", width = 9, height = 3.5)
+ggsave(path = fig_dir, filename = "es_school_isat_2mi.png", width = 8, height = 4)
 
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -461,11 +457,12 @@ schart(spec_results_lowinc, ci=c(0.9, 0.95), ylab="", labels = labels,
 abline(v=13)
 abline(v=26)
 abline(v=39)
-text(x=6, y=5.75, "Academic Warning", col=palette$dark, font=2, cex = 0.8)
-text(x=19.5, y=5.75, "Below", col=palette$dark, font=2, cex = 0.8)
-text(x=32.5, y=5.75, "Meets", col=palette$dark, font=2, cex = 0.8)
-text(x=46, y=5.75, "Exceeds", col=palette$dark, font=2, cex = 0.8)
-legend(x=1, y=-5, col = palette$blue, legend = "p < 0.05", seg.len=0.65, inset = 0.005,  box.lty=0, cex=0.9, lty = 1, lwd = 4, bg="transparent")
+text(x=6, y=7.2, "Academic Warning", col=palette$dark, font=2, cex = 0.8)
+text(x=19.5, y=7.2, "Below", col=palette$dark, font=2, cex = 0.8)
+text(x=32.5, y=7.2, "Meets", col=palette$dark, font=2, cex = 0.8)
+text(x=46, y=7.2, "Exceeds", col=palette$dark, font=2, cex = 0.8)
+legend(x=1, y=-6, col = palette$dark, legend = "95% CI", seg.len=0.65, inset = 0.005,  box.lty=0, cex=0.9, lty = 1, lwd = 4, bg="transparent")
+legend(x=1, y=-7, col = "grey", legend = "90% CI", seg.len=0.65, inset = 0.005,  box.lty=0, cex=0.9, lty = 1, lwd = 4, bg="transparent")
 
 dev.off()
 
@@ -485,7 +482,8 @@ text(x=6, y=3.25, "Academic Warning", col=palette$dark, font=2, cex = 0.8)
 text(x=19.5, y=3.25, "Below", col=palette$dark, font=2, cex = 0.8)
 text(x=32.5, y=3.25, "Meets", col=palette$dark, font=2, cex = 0.8)
 text(x=46, y=3.25, "Exceeds", col=palette$dark, font=2, cex = 0.8)
-legend(x=1, y=-3.3, col = palette$blue, legend = "p < 0.05", seg.len=0.65, inset = 0.005,  box.lty=0, cex=0.9, lty = 1, lwd = 4, bg="transparent")
+legend(x=1, y=-3, col = palette$dark, legend = "95% CI", seg.len=0.65, inset = 0.005,  box.lty=0, cex=0.9, lty = 1, lwd = 4, bg="transparent")
+legend(x=1, y=-3.5, col = "grey", legend = "90% CI", seg.len=0.65, inset = 0.005,  box.lty=0, cex=0.9, lty = 1, lwd = 4, bg="transparent")
 
 dev.off()
 
